@@ -24,7 +24,7 @@ class _navbarState extends State<navbar> {
   late var doc = widget.user;
 
   late List<Widget> _telas = [
-    HomePage(),
+    HomePage(user: doc),
     FavoritosPage(),
     ChatPage(),
     PerfilPage(user: doc)

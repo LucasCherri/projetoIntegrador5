@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:front_projeto_quintoandar/CadastroImovel/CadastroImovelPage1.dart';
 import 'package:front_projeto_quintoandar/SuaContaPage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -25,50 +24,95 @@ class PerfilPage extends StatefulWidget {
 class _PerfilPageState extends State<PerfilPage> {
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
-  final _scrollController = ScrollController();
-  int _currentPage = 1;
-  int _pageSize = 3;
   List<Map<String, dynamic>> _imoveis = [];
+  List<Map<String, dynamic>> _visitasPedidas = [];
+  List<Map<String, dynamic>> _visitasAceitas = [];
+  List<Map<String, dynamic>> _visitasAceitasSolicitante = [];
+  List<Map<String, dynamic>> _notificacoes = [];
 
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_onScroll);
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-    _scrollController.dispose();
-  }
-
-  Future<List<Map<String, dynamic>>> getImoveis(int page, int pageSize) async {
+  Future<List<Map<String, dynamic>>> getImoveis() async {
 
     var user = widget.user;
     var id = user!['_id'];
 
     var db = await Db.getConnectionImoveis();
     var col = db.collection('informacoes');
-    final doc = col.find(mongo.where.eq('_userId', id)).skip((page - 1) * pageSize).take(pageSize).toList();
+    final doc = col.find(mongo.where.eq('_userId', id)).toList();
 
     List<Map<String, dynamic>> data = await doc;
 
-    if (page == 1) {
-      _imoveis = data;
-    } else {
-      _imoveis.addAll(data);
-    }
+    _imoveis = data;
 
     return data;
   }
 
-  void _onScroll() {
-    if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent) {
-      setState(() {
-        _currentPage++;
-      });
-      getImoveis(_currentPage, _pageSize);
-    }
+  Future<List<Map<String, dynamic>>> getVisitasPedidas() async {
+
+    var user = widget.user;
+    var id = user!['_id'];
+
+    var db = await Db.getConnectionImoveis();
+    var col = db.collection('informacoes');
+    final doc = col.find(mongo.where.eq('_userId', id).and(mongo.where.exists('visitasPedidas'))).toList();
+
+    List<Map<String, dynamic>> data = await doc;
+
+    _visitasPedidas = data;
+
+    return data;
+  }
+
+  Future<List<Map<String, dynamic>>> getVisitasAceitas() async {
+
+    var user = widget.user;
+    var id = user!['_id'];
+
+    var db = await Db.getConnectionImoveis();
+    var col = db.collection('informacoes');
+    final doc = col.find(mongo.where.eq('_userId', id).and(mongo.where.exists('visitasAceitas'))).toList();
+
+    List<Map<String, dynamic>> data = await doc;
+
+    _visitasAceitas = data;
+
+    return data;
+  }
+
+  Future<List<Map<String, dynamic>>> getVisitasAceitasSolicitante() async {
+
+    var user = widget.user;
+    var email = user!['email'];
+
+    var db = await Db.getConnectionImoveis();
+    var col = db.collection('informacoes');
+    final doc = col.find(mongo.where.exists('visitasAceitas').and(mongo.where.eq('visitasAceitas', {'email':email}))).toList();
+
+    List<Map<String, dynamic>> data = await doc;
+
+    _visitasAceitasSolicitante = data;
+
+    return data;
+  }
+
+  Future<List<Map<String, dynamic>>> getNotificacoes() async {
+
+    var user = widget.user;
+    var email = user!['email'];
+
+    var db = await Db.getConnection();
+    var col = db.collection('notificacoes');
+    final doc = col.find(mongo.where.eq('emailSolicitante', email)).toList();
+
+    List<Map<String, dynamic>> data = await doc;
+
+    _notificacoes = data;
+
+    return data;
   }
 
   void seusImoveis() {
@@ -99,7 +143,7 @@ class _PerfilPageState extends State<PerfilPage> {
                           height: 600,
                           child: SizedBox(
                             child: FutureBuilder(
-                                future: getImoveis(_currentPage, _pageSize),
+                                future: getImoveis(),
                                 builder: (context, snapshot){
                                   if (snapshot.connectionState == ConnectionState.waiting) {
                                     return Center(
@@ -114,21 +158,16 @@ class _PerfilPageState extends State<PerfilPage> {
                                   if (snapshot.hasError) {
                                     return Center(child: Text('Error: ${snapshot.error}'));
                                   }
-                                  if (!snapshot.hasData) {
+                                  if (_imoveis.isEmpty) {
                                     return Center(child: Text('Nenhum imóvel encontrado.'));
                                   }
                                   return ListView.builder(
-                                      controller: _scrollController,
                                       itemCount: _imoveis.length,
                                       scrollDirection: Axis.vertical,
                                       itemBuilder: (context, index){
-                                        if (index == _imoveis.length) {
-                                          return Container(
-                                            height: 50,
-                                            alignment: Alignment.center,
-                                            child: Text('Puxe para atualizar'),
-                                          );
-                                        } else {
+                                        if(_imoveis.isEmpty){
+                                          return Center(child: Text('Nenhum anúncio encontrado.'));
+                                        }else{
                                           return Align(
                                             alignment: AlignmentDirectional(0, 0),
                                             child: Padding(
@@ -195,7 +234,16 @@ class _PerfilPageState extends State<PerfilPage> {
                                                                 ),
                                                               ),
                                                             ),
-                                                            Text('${_imoveis[index]['valores']['negocio']}')
+                                                            Container(
+                                                                width: 70,
+                                                                decoration: BoxDecoration(
+                                                                  borderRadius: BorderRadius.circular(2),
+                                                                  color: Color(0xFF003049),
+                                                                ),
+                                                                child: Center(
+                                                                    child: Text('${_imoveis[index]['valores']['negocio']}', style: TextStyle(color: Colors.white),)
+                                                                )
+                                                            )
                                                           ],
                                                         ),
                                                       ),
@@ -205,8 +253,9 @@ class _PerfilPageState extends State<PerfilPage> {
                                                           mainAxisSize: MainAxisSize.max,
                                                           children: [
                                                             Text(
-                                                              '\n${_imoveis[index]['endereco']['rua']},\n${_imoveis[index]['endereco']['bairro']},'
+                                                              '\nRua ${_imoveis[index]['endereco']['rua']},\n${_imoveis[index]['endereco']['bairro']},'
                                                                   '\n${_imoveis[index]['endereco']['cidade']} - ${_imoveis[index]['endereco']['uf']}',
+                                                              style: TextStyle(fontWeight: FontWeight.w500),
                                                             ),
                                                           ],
                                                         ),
@@ -218,7 +267,8 @@ class _PerfilPageState extends State<PerfilPage> {
                                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                           children: [
                                                             Text(
-                                                                'Valor: R\$ ${_imoveis[index]['valores']['valor']}'
+                                                              'Valor: R\$ ${_imoveis[index]['valores']['valor']}',
+                                                              style: TextStyle(color: Color(0xFF003049), fontWeight: FontWeight.bold),
                                                             ),
                                                             InkWell(
                                                               child: Icon(
@@ -277,6 +327,582 @@ class _PerfilPageState extends State<PerfilPage> {
                   )
               )
           ),
+        );
+      },
+    );
+  }
+
+  void visitasProprietario() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState){
+              return Scaffold(
+                body: Container(
+                    width: double.infinity,
+                    height: double.infinity,
+                    color: Colors.white,
+                    child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.max,
+                          children: [
+                            Container(
+                                margin: EdgeInsets.only(right: 20),
+                                alignment: Alignment.topRight,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(Icons.refresh,
+                                          size: 30),
+                                      onPressed: () {
+                                        setState(() {});
+                                      },
+                                    ),
+                                    SizedBox(
+                                      width: 10,
+                                    ),
+                                    IconButton(
+                                      icon: Icon(Icons.close,
+                                          size: 30),
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                      },
+                                    )
+                                  ],
+                                )
+                            ),
+                            Container(
+                              margin: EdgeInsets.only(left: 20, top: 30),
+                              alignment: Alignment.topLeft,
+                              child: Text('Pedidos de visita', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                            ),
+                            Container(
+                              height: 200,
+                              child: SizedBox(
+                                child: FutureBuilder(
+                                    future: getVisitasPedidas(),
+                                    builder: (context, snapshot){
+                                      if (snapshot.connectionState == ConnectionState.waiting) {
+                                        return Center(
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                SizedBox(height: 10,),
+                                                Text("Carregando pedidos...")
+                                              ],
+                                            ));
+                                      }
+                                      if (snapshot.hasError) {
+                                        return Center(child: Text('Error: ${snapshot.error}'));
+                                      }
+                                      if (_visitasPedidas.isEmpty) {
+                                        return Center(child: Text('Nenhum pedido encontrado.'));
+                                      }
+                                      return ListView.builder(
+                                          itemCount: _visitasPedidas.length,
+                                          scrollDirection: Axis.vertical,
+                                          itemBuilder: (context, index){
+                                            if (_visitasPedidas.length > index && _visitasPedidas[index]['visitasPedidas'].length > 0){
+                                              return Align(
+                                                alignment: AlignmentDirectional(0, 0),
+                                                child: Padding(
+                                                  padding: EdgeInsetsDirectional.fromSTEB(20, 10, 20, 10),
+                                                  child: InkWell(
+                                                    onTap: (){
+                                                    },
+                                                    child: Container(
+                                                      width: double.infinity,
+                                                      margin: EdgeInsets.only(left: 0, right: 0),
+                                                      height: 140,
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.white,
+                                                        boxShadow: [
+                                                          BoxShadow(
+                                                            blurRadius: 1,
+                                                            color: Colors.black,
+                                                          )
+                                                        ],
+                                                        borderRadius: BorderRadius.all(Radius.circular(8)),
+                                                      ),
+                                                      child: Column(
+                                                        mainAxisSize: MainAxisSize.max,
+                                                        children: [
+                                                          Padding(
+                                                            padding: EdgeInsetsDirectional.fromSTEB(20, 10, 20, 0),
+                                                            child: Row(
+                                                              mainAxisSize: MainAxisSize.max,
+                                                              children: [
+                                                                Text(
+                                                                  '\nEndereço da visita:\n\n${_visitasPedidas[index]['endereco']['rua']}, ${_visitasPedidas[index]['endereco']['numero']}',
+                                                                  style: TextStyle(
+                                                                      color: Colors.black,
+                                                                      fontWeight: FontWeight.bold
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                          Padding(
+                                                            padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, 0),
+                                                            child: Row(
+                                                              mainAxisSize: MainAxisSize.max,
+                                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                              children: [
+                                                                for (var visita in _visitasPedidas[index]['visitasPedidas'])
+                                                                  Text(
+                                                                    '\nData: ${visita['data']}'
+                                                                        '\nHora: ${visita['horario']}',
+                                                                    style: TextStyle(
+                                                                        color: Colors.black,
+                                                                        fontWeight: FontWeight.bold
+                                                                    ),
+                                                                  ),
+                                                                Row(
+                                                                  children: [
+                                                                    InkWell(
+                                                                      child: Icon(
+                                                                        Icons.check_box,
+                                                                        size: 30,
+                                                                        color: Colors.green,
+                                                                      ),
+                                                                      onTap: (){
+                                                                        showDialog(
+                                                                          context: context,
+                                                                          builder: (BuildContext context) {
+                                                                            return AlertDialog(
+                                                                              title: Text("Pedido de visita"),
+                                                                              content: Text("Deseja aceitar essa visita?"),
+                                                                              actions: [
+                                                                                TextButton(
+                                                                                  child: Text("Cancelar"),
+                                                                                  onPressed:  () {
+                                                                                    Navigator.pop(context);
+                                                                                  },
+                                                                                ),
+                                                                                TextButton(
+                                                                                  child: Text("Sim"),
+                                                                                  onPressed: () async {
+                                                                                    var db = await Db.getConnectionImoveis();
+                                                                                    var col = db.collection('informacoes');
+
+                                                                                    var db2 = await Db.getConnection();
+                                                                                    var col2 = db2.collection('notificacoes');
+
+                                                                                    var id = _visitasPedidas[index]['_id'];
+                                                                                    var visitasPedidas = _visitasPedidas[index]['visitasPedidas'];
+
+                                                                                    for (int i = 0; i < visitasPedidas.length; i++) {
+                                                                                      var visita = visitasPedidas[i];
+
+                                                                                      await col.updateOne(
+                                                                                        {'_id': id},
+                                                                                        {'\$pull': {'visitasPedidas': {'_id': visita['_id']}}},
+                                                                                      );
+
+                                                                                      col.updateOne(mongo.where.eq('_id', id), mongo.modify.push('visitasAceitas', {
+                                                                                        'idProprietario' : visita['idProprietario'],
+                                                                                        'emailSolicitante' : visita['emailSolicitante'],
+                                                                                        'idImovel': visita['idImovel'],
+                                                                                        'data' : visita['data'],
+                                                                                        'horario' : visita['horario']
+                                                                                      }));
+
+                                                                                      await col2.insertOne({
+                                                                                        'idProprietario' : visita['idProprietario'],
+                                                                                        'emailSolicitante' : visita['emailSolicitante'],
+                                                                                        'idImovel': visita['idImovel'],
+                                                                                        'data' : visita['data'],
+                                                                                        'horario' : visita['horario'],
+                                                                                        'status' : 'Aceito'
+                                                                                      });
+                                                                                    }
+
+                                                                                    setState(() {
+                                                                                      _visitasPedidas[index]['visitasPedidas'].clear();
+                                                                                      _visitasPedidas.removeAt(index);
+                                                                                    });
+
+                                                                                    Navigator.pop(context);
+
+                                                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                                                      SnackBar(content: Text('Visita marcada')),
+                                                                                    );
+                                                                                  },
+                                                                                ),
+                                                                              ],
+                                                                            );
+                                                                          },
+                                                                        );
+                                                                      },
+                                                                    ),
+                                                                    SizedBox(
+                                                                      width: 20,
+                                                                    ),
+                                                                    InkWell(
+                                                                      child: Icon(
+                                                                        Icons.close,
+                                                                        size: 30,
+                                                                        color: Colors.red,
+                                                                      ),
+                                                                      onTap: (){
+                                                                        showDialog(
+                                                                          context: context,
+                                                                          builder: (BuildContext context) {
+                                                                            return AlertDialog(
+                                                                              title: Text("Pedido de visita"),
+                                                                              content: Text("Deseja recusar essa visita?"),
+                                                                              actions: [
+                                                                                TextButton(
+                                                                                  child: Text("Cancelar"),
+                                                                                  onPressed:  () {
+                                                                                    Navigator.pop(context);
+                                                                                  },
+                                                                                ),
+                                                                                TextButton(
+                                                                                  child: Text("Sim"),
+                                                                                  onPressed: () async {
+                                                                                    var db = await Db.getConnectionImoveis();
+                                                                                    var col = db.collection('informacoes');
+
+                                                                                    var db2 = await Db.getConnection();
+                                                                                    var col2 = db2.collection('notificacoes');
+
+                                                                                    var id = _visitasPedidas[index]['_id'];
+                                                                                    var visitasPedidas = _visitasPedidas[index]['visitasPedidas'];
+
+                                                                                    for (int i = 0; i < visitasPedidas.length; i++) {
+                                                                                      var visita = visitasPedidas[i];
+                                                                                      await col.updateOne(
+                                                                                        {'_id': id},
+                                                                                        {'\$pull': {'visitasPedidas': {'_id': visita['_id']}}},
+                                                                                      );
+
+                                                                                      await col2.insertOne({
+                                                                                        'idProprietario' : visita['idProprietario'],
+                                                                                        'emailSolicitante' : visita['emailSolicitante'],
+                                                                                        'idImovel': visita['idImovel'],
+                                                                                        'data' : visita['data'],
+                                                                                        'horario' : visita['horario'],
+                                                                                        'status' : 'Recusado'
+                                                                                      });
+                                                                                    }
+
+                                                                                    setState(() {
+                                                                                      _visitasPedidas[index]['visitasPedidas'].clear();
+                                                                                    });
+
+                                                                                    Navigator.pop(context);
+
+                                                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                                                      SnackBar(content: Text('Visita recusada')),
+                                                                                    );
+                                                                                  },
+                                                                                ),
+                                                                              ],
+                                                                            );
+                                                                          },
+                                                                        );
+                                                                      },
+                                                                    )
+                                                                  ],
+                                                                )
+                                                              ],
+                                                            ),
+                                                          )
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              );
+                                            }else {
+                                              return Container(
+                                                  margin: EdgeInsets.only(top: 20, left: 20, right: 20),
+                                                  child: Center(
+                                                      child: Text('Nenhum pedido para imóvel na rua:\n${_visitasPedidas[index]['endereco']['rua']}, '
+                                                          '${_visitasPedidas[index]['endereco']['numero']}\n', textAlign: TextAlign.center,)
+                                                  )
+                                              );
+                                            }
+                                          }
+                                      );
+                                    }
+                                ),
+                              ),
+                            ),
+                            Container(
+                              margin: EdgeInsets.only(left: 20, right: 20),
+                              child: Divider(color: Colors.black,),
+                            ),
+                            SizedBox(
+                              height: 30,
+                            ),
+                            Container(
+                              margin: EdgeInsets.only(left: 20, top: 10),
+                              alignment: Alignment.topLeft,
+                              child: Text('Visitas Marcadas', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                            ),
+                            Container(
+                              height: 300,
+                              child: SizedBox(
+                                child: FutureBuilder(
+                                    future: getVisitasAceitas(),
+                                    builder: (context, snapshot){
+                                      if (snapshot.connectionState == ConnectionState.waiting) {
+                                        return Center(
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                SizedBox(height: 10,),
+                                                Text("Carregando visitas marcadas...")
+                                              ],
+                                            ));
+                                      }
+                                      if (snapshot.hasError) {
+                                        return Center(child: Text('Error: ${snapshot.error}'));
+                                      }
+                                      if (_visitasAceitas.isEmpty) {
+                                        return Center(child: Text('Nenhuma visita encontrada.'));
+                                      }
+                                      return ListView.builder(
+                                          itemCount: _visitasAceitas.length,
+                                          scrollDirection: Axis.vertical,
+                                          itemBuilder: (context, index){
+                                            if(_visitasAceitas.isEmpty){
+                                              return Container(
+                                                  margin: EdgeInsets.only(top: 20, left: 20, right: 20),
+                                                  child: Center(
+                                                      child: Text('Nenhuma visita para imóvel na rua:\n${_visitasAceitas[index]['endereco']['rua']}, '
+                                                          '${_visitasAceitas[index]['endereco']['numero']}\n', textAlign: TextAlign.center,)
+                                                  )
+                                              );
+                                            }else{
+                                              return Align(
+                                                alignment: AlignmentDirectional(0, 0),
+                                                child: Padding(
+                                                  padding: EdgeInsetsDirectional.fromSTEB(20, 10, 20, 10),
+                                                  child: InkWell(
+                                                    onTap: (){
+                                                    },
+                                                    child: Container(
+                                                      width: double.infinity,
+                                                      margin: EdgeInsets.only(left: 0, right: 0),
+                                                      height: 100,
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.white,
+                                                        boxShadow: [
+                                                          BoxShadow(
+                                                            blurRadius: 1,
+                                                            color: Colors.black,
+                                                          )
+                                                        ],
+                                                        borderRadius: BorderRadius.all(Radius.circular(8)),
+                                                      ),
+                                                      child: Column(
+                                                        mainAxisSize: MainAxisSize.max,
+                                                        children: [
+                                                          Padding(
+                                                            padding: EdgeInsetsDirectional.fromSTEB(20, 10, 20, 0),
+                                                            child: Row(
+                                                              mainAxisSize: MainAxisSize.max,
+                                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                              children: [
+                                                                Text(
+                                                                  '\nEndereço da visita:\n\n${_visitasAceitas[index]['endereco']['rua']}, ${_visitasAceitas[index]['endereco']['numero']}',
+                                                                  style: TextStyle(
+                                                                      color: Colors.black,
+                                                                      fontWeight: FontWeight.bold
+                                                                  ),
+                                                                ),
+                                                                TextButton(
+                                                                    onPressed: (){
+                                                                      exibirVisitasProprietario(_visitasAceitas[index]);
+                                                                    },
+                                                                    child: Text(
+                                                                        "Ver visitas"
+                                                                    )
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          }
+                                      );
+                                    }
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                    )
+                ),
+              );
+            }
+        );
+      },
+    );
+  }
+
+  void notificacoes() {
+
+    void deleteNotificacao(String id) async {
+      var db = await Db.getConnection();
+      var col = db.collection('notificacoes');
+      await col.remove({'_id': mongo.ObjectId.parse(id)});
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Notificação removida')),
+      );
+      setState(() {
+        _notificacoes.removeWhere((notificacao) => notificacao['_id'] == id);
+      });
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState){
+              return Scaffold(
+                body: Container(
+                    width: double.infinity,
+                    height: double.infinity,
+                    color: Colors.white,
+                    child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.max,
+                          children: [
+                            Container(
+                                margin: EdgeInsets.only(right: 20),
+                                alignment: Alignment.topRight,
+                                child: IconButton(
+                                  icon: Icon(Icons.close,
+                                      size: 30),
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                  },
+                                )
+                            ),
+                            Container(
+                              height: 550,
+                              child: SizedBox(
+                                child: FutureBuilder(
+                                    future: getNotificacoes(),
+                                    builder: (context, snapshot){
+                                      if (snapshot.connectionState == ConnectionState.waiting) {
+                                        return Center(
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                SizedBox(height: 10,),
+                                                Text("Carregando suas notificações...")
+                                              ],
+                                            ));
+                                      }
+                                      if (snapshot.hasError) {
+                                        return Center(child: Text('Error: ${snapshot.error}'));
+                                      }
+                                      if (_notificacoes.isEmpty) {
+                                        return Center(child: Text('Nenhuma notificação encontrada.'));
+                                      }
+                                      return ListView.builder(
+                                          itemCount: _notificacoes.length,
+                                          scrollDirection: Axis.vertical,
+                                          itemBuilder: (context, index){
+                                            return Align(
+                                              alignment: AlignmentDirectional(0, 0),
+                                              child: Padding(
+                                                padding: EdgeInsetsDirectional.fromSTEB(20, 10, 20, 10),
+                                                child: InkWell(
+                                                  onTap: (){
+                                                  },
+                                                  child: Container(
+                                                    width: double.infinity,
+                                                    margin: EdgeInsets.only(left: 0, right: 0),
+                                                    height: 100,
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.white,
+                                                      boxShadow: [
+                                                        BoxShadow(
+                                                          blurRadius: 1,
+                                                          color: Colors.black,
+                                                        )
+                                                      ],
+                                                      borderRadius: BorderRadius.all(Radius.circular(8)),
+                                                    ),
+                                                    child: Column(
+                                                      mainAxisSize: MainAxisSize.max,
+                                                      children: [
+                                                        Padding(
+                                                          padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, 0),
+                                                          child: Row(
+                                                            mainAxisSize: MainAxisSize.max,
+                                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                            children: [
+                                                              Text(
+                                                                '\nSeu pedido de visita foi: ${_notificacoes[index]['status']}',
+                                                                style: TextStyle(
+                                                                    color: Color(0xFF003049),
+                                                                    fontWeight: FontWeight.bold,
+                                                                    fontSize: 16
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                        Padding(
+                                                          padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, 0),
+                                                          child: Row(
+                                                            mainAxisSize: MainAxisSize.max,
+                                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                            children: [
+                                                              Text(
+                                                                '\nData: ${_notificacoes[index]['data']}\nHorário: ${_notificacoes[index]['horario']}',
+                                                                style: TextStyle(
+                                                                    color: Colors.black,
+                                                                    fontWeight: FontWeight.bold
+                                                                ),
+                                                              ),
+                                                              InkWell(
+                                                                child: Icon(
+                                                                  Icons.delete_outline,
+                                                                  size: 25,
+                                                                  color: Colors.red,
+                                                                ),
+                                                                onTap: (){
+                                                                  setState(() {
+                                                                    deleteNotificacao(_notificacoes[index]['_id'].toHexString());
+                                                                  });
+                                                                },
+                                                              )
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                      );
+                                    }
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                    )
+                ),
+              );
+            }
         );
       },
     );
@@ -530,6 +1156,286 @@ class _PerfilPageState extends State<PerfilPage> {
     );
   }
 
+  void exibirVisitasProprietario(Map<String, dynamic> visitas) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Scaffold(
+          body: Container(
+              width: double.infinity,
+              height: double.infinity,
+              color: Colors.white,
+              child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.max,
+                    children: [
+                      Container(
+                          margin: EdgeInsets.only(right: 20),
+                          alignment: Alignment.topRight,
+                          child: IconButton(
+                            icon: Icon(Icons.close,
+                                size: 30),
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                          )
+                      ),
+                      Container(
+                        margin: EdgeInsets.only(left: 20, top: 30),
+                        alignment: Alignment.topLeft,
+                        child: Text('Visitas marcadas', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      ),
+                      Container(
+                        height: 550,
+                        child: SizedBox(
+                          child: ListView.builder(
+                            itemCount: visitas['visitasAceitas'].length,
+                            scrollDirection: Axis.vertical,
+                            itemBuilder: (context, index){
+                              var visita = visitas['visitasAceitas'][index];
+                              return Align(
+                                alignment: AlignmentDirectional(0, 0),
+                                child: Padding(
+                                  padding: EdgeInsetsDirectional.fromSTEB(20, 10, 20, 10),
+                                  child: InkWell(
+                                    onTap: (){
+                                    },
+                                    child: Container(
+                                      width: double.infinity,
+                                      margin: EdgeInsets.only(left: 0, right: 0),
+                                      height: 70,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            blurRadius: 1,
+                                            color: Colors.black,
+                                          )
+                                        ],
+                                        borderRadius: BorderRadius.all(Radius.circular(8)),
+                                      ),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.max,
+                                        children: [
+                                          Padding(
+                                            padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, 0),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.max,
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Text(
+                                                  '\nData: ${visita['data']}'
+                                                      '\nHora: ${visita['horario']}',
+                                                  style: TextStyle(
+                                                      color: Colors.black,
+                                                      fontWeight: FontWeight.bold
+                                                  ),
+                                                ),
+                                                Row(
+                                                  children: [
+                                                    InkWell(
+                                                      child: Icon(
+                                                        Icons.info_outline,
+                                                        size: 30,
+                                                        color: Color(0xFF003049),
+                                                      ),
+                                                      onTap: ()async{
+                                                        var email = visita['emailSolicitante'];
+
+                                                        var db = await Db.getConnection();
+                                                        var col = db.collection('user');
+
+                                                        var doc2 = await col.findOne(mongo.where.eq('email', email));
+                                                        if (doc2 != null) {
+                                                          String nome = doc2['nome'];
+                                                          String email = doc2['email'];
+                                                          showDialog(
+                                                            context: context,
+                                                            builder: (BuildContext context) {
+                                                              return AlertDialog(
+                                                                title: Text("Informações do visitante"),
+                                                                content: Text("Nome: $nome\nEmail: $email"),
+                                                                actions: [
+                                                                  TextButton(
+                                                                    onPressed: () => Navigator.pop(context),
+                                                                    child: Text("Fechar"),
+                                                                  ),
+                                                                ],
+                                                              );
+                                                            },
+                                                          );
+                                                        }
+                                                      },
+                                                    ),
+                                                  ],
+                                                )
+                                              ],
+                                            ),
+                                          )
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+              )
+          ),
+        );
+      },
+    );
+  }
+
+  void exibirVisitasSolicitante() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Scaffold(
+          body: Container(
+              width: double.infinity,
+              height: double.infinity,
+              color: Colors.white,
+              child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.max,
+                    children: [
+                      Container(
+                          margin: EdgeInsets.only(right: 20),
+                          alignment: Alignment.topRight,
+                          child: IconButton(
+                            icon: Icon(Icons.close,
+                                size: 30),
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                          )
+                      ),
+                      Container(
+                        margin: EdgeInsets.only(left: 20, top: 30),
+                        alignment: Alignment.topLeft,
+                        child: Text('Visitas marcadas', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      ),
+                      Container(
+                        height: 550,
+                        child: SizedBox(
+                          child: ListView.builder(
+                              itemCount: _visitasAceitasSolicitante.length,
+                              scrollDirection: Axis.vertical,
+                              itemBuilder: (context, index){
+                                var visita = _visitasAceitasSolicitante[index];
+                                return Align(
+                                  alignment: AlignmentDirectional(0, 0),
+                                  child: Padding(
+                                    padding: EdgeInsetsDirectional.fromSTEB(20, 10, 20, 10),
+                                    child: InkWell(
+                                      onTap: (){
+                                      },
+                                      child: Container(
+                                        width: double.infinity,
+                                        margin: EdgeInsets.only(left: 0, right: 0),
+                                        height: 70,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              blurRadius: 1,
+                                              color: Colors.black,
+                                            )
+                                          ],
+                                          borderRadius: BorderRadius.all(Radius.circular(8)),
+                                        ),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.max,
+                                          children: [
+                                            Padding(
+                                              padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, 0),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.max,
+                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                children: [
+                                                  Text(
+                                                    '\nData: ${visita['visitasAceitas']['data']}'
+                                                        '\nHora: ${visita['visitasAceitas']['horario']}',
+                                                    style: TextStyle(
+                                                        color: Colors.black,
+                                                        fontWeight: FontWeight.bold
+                                                    ),
+                                                  ),
+                                                  Row(
+                                                    children: [
+                                                      InkWell(
+                                                        child: Icon(
+                                                          Icons.info_outline,
+                                                          size: 30,
+                                                          color: Color(0xFF003049),
+                                                        ),
+                                                        onTap: ()async{
+                                                          var rua = visita['endereco']['rua'];
+                                                          var numero = visita['endereco']['numero'];
+                                                          var id = visita['_userId'];
+
+                                                          var db = await Db.getConnection();
+                                                          var col = db.collection('user');
+
+                                                          var doc = await col.findOne(mongo.where.eq('_id', id));
+                                                          if (doc != null) {
+                                                            String nome = doc['nome'];
+                                                            String email = doc['email'];
+                                                            showDialog(
+                                                              context: context,
+                                                              builder: (BuildContext context) {
+                                                                return AlertDialog(
+                                                                  title: Text("Informações da visita"),
+                                                                  content: Column(
+                                                                    children: [
+                                                                      Text("Nome: $nome\nEmail: $email"),
+                                                                      SizedBox(
+                                                                        height: 10,
+                                                                      ),
+                                                                      Text("Rua: $rua, $numero"),
+                                                                    ],
+                                                                  ),
+                                                                  actions: [
+                                                                    TextButton(
+                                                                      onPressed: () => Navigator.pop(context),
+                                                                      child: Text("Fechar"),
+                                                                    ),
+                                                                  ],
+                                                                );
+                                                              },
+                                                            );
+                                                          }
+                                                        },
+                                                      ),
+                                                    ],
+                                                  )
+                                                ],
+                                              ),
+                                            )
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+              )
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     var doc = widget.user;
@@ -683,6 +1589,9 @@ class _PerfilPageState extends State<PerfilPage> {
                                   ),
                                 ),
                               ),
+                              onTap: (){
+                                exibirVisitasSolicitante();
+                              },
                             )
                           ],
                         ),
@@ -788,6 +1697,9 @@ class _PerfilPageState extends State<PerfilPage> {
                                   ),
                                 ),
                               ),
+                              onTap: (){
+                                notificacoes();
+                              },
                             ),
                           ],
                         ),
@@ -915,6 +1827,9 @@ class _PerfilPageState extends State<PerfilPage> {
                                   ),
                                 ),
                               ),
+                              onTap: (){
+                                visitasProprietario();
+                              },
                             ),
                           ],
                         ),

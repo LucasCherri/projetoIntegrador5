@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'FirstPage.dart';
 import 'Settings/Snackbar.dart';
 import 'Settings/User.dart';
+import 'Settings/db.dart';
 
 class SuaContaPage extends StatefulWidget {
 
@@ -373,12 +374,12 @@ class _SuaContaPageState extends State<SuaContaPage> {
                   child: FFButtonWidget(
                     onPressed: () async{
 
-                      var email = widget.user;
+                      var doc = widget.user;
+                      var email = doc!['email'];
                       var nome = controllerNome.text;
                       var cel = controllerCelular.text;
 
-                      var db = await mongo.Db.create("mongodb+srv://lucascherri:lucascherri@cluster0.6udflvk.mongodb.net/authentication?retryWrites=true&w=majority");
-                      await db.open();
+                      var db = await Db.getConnection();
                       var col = db.collection('user');
 
                       if(nome.isNotEmpty && cel.isEmpty){

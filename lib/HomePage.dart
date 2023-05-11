@@ -8,8 +8,14 @@ import 'flutter_flow/flutter_flow_theme.dart';
 import 'flutter_flow/flutter_flow_widgets.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'maps/MapsPage2.dart';
+import 'package:mongo_dart/mongo_dart.dart' as mongo;
 
 class HomePage extends StatefulWidget {
+
+  Map<String, dynamic>? user;
+
+  HomePage({Key? key, required this.user}) : super(key: key);
+
   @override
   _HomePageState createState() => _HomePageState();
 }
@@ -69,6 +75,72 @@ class _HomePageState extends State<HomePage> {
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    final existingFavorites = prefs.getStringList('imoveisFavoritos') ?? [];
+    final existingIds = existingFavorites.map((favorito) => jsonDecode(favorito)['_id'].toString()).toSet();
+
+    final jsonList = _favoritos
+        .where((favorito) => !existingIds.contains(favorito['_id'].toString()))
+        .map<String>((favorito) => jsonEncode(favorito))
+        .toList();
+
+    final mergedList = [...existingFavorites, ...jsonList];
+    await prefs.setStringList('imoveisFavoritos', mergedList);
+  }
+
+  void toggleFavorite(Map<String, dynamic> imovel) async {
+    final key = imovel['_id'].toString();
+
+    bool isFavorited = false;
+    int index = 0;
+    for (int i = 0; i < _favoritos.length; i++) {
+      if (_favoritos[i]['_id'].toString() == key) {
+        isFavorited = true;
+        index = i;
+        break;
+      }
+    }
+    if (isFavorited) {
+      setState(() {
+        _favoritos.removeAt(index);
+        _isFavorito = false;
+      });
+    } else {
+      setState(() {
+        final novoFavorito = {...imovel};
+        _favoritos.add(novoFavorito);
+        _isFavorito = true;
+      });
+    }
+    await _saveFavorites();
+  }
+
+  void _toggleFavorito(Map<String, dynamic> imovel) async {
+    toggleFavorite(imovel);
+
+    final prefs = await SharedPreferences.getInstance();
+    final favorites = prefs.getStringList('imoveisFavoritos') ?? [];
+
+    final isFavorito = favorites.any((favorito) {
+      final decoded = jsonDecode(favorito);
+      return decoded['_id'].toString() == imovel['_id'].toString();
+    });
+
+    setState(() {
+      _isFavorito = isFavorito;
+    });
+  }
+
+  Future<void> _loadFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    final favorites = prefs.getStringList('imoveisFavoritos') ?? [];
+
+    setState(() {
+      _favoritos = favorites.map<Map<String, dynamic>>((favorito) => jsonDecode(favorito)).toList();
+    });
   }
 
   void exibirDetalhes(Map<String, dynamic> imovel) {
@@ -314,6 +386,164 @@ class _HomePageState extends State<HomePage> {
                         padding: EdgeInsetsDirectional.fromSTEB(10, 20, 10, 0),
                         child: FFButtonWidget(
                           onPressed: () async{
+                            DateTime? _dataHora;
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return StatefulBuilder(
+                                  builder: (BuildContext context, StateSetter setState) {
+                                    return Scaffold(
+                                      body: Container(
+                                          margin: EdgeInsets.only(top: 30, left: 20, right: 20),
+                                          child: Column(
+                                            children: [
+                                              Row(
+                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                children: [
+                                                  Text(
+                                                    "Visita ao imóvel",
+                                                    style: TextStyle(
+                                                      fontSize: 20,
+                                                      color: Colors.black,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                  IconButton(
+                                                    onPressed: () {
+                                                      Navigator.of(context).pop();
+                                                    },
+                                                    icon: Icon(
+                                                      Icons.close,
+                                                      color: Colors.black,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              SizedBox(height: 60),
+                                              Padding(
+                                                  padding: EdgeInsets.only(right: 10),
+                                                child: Text("Selecione a data e hora desejada:",style: TextStyle(
+                                                    fontSize: 20
+                                                )),
+                                              ),
+                                              SizedBox(height: 15),
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: ElevatedButton(
+                                                      onPressed: () async {
+                                                        final selectedDate = await showDatePicker(
+                                                          context: context,
+                                                          initialDate: DateTime.now(),
+                                                          firstDate: DateTime.now(),
+                                                          lastDate: DateTime.now().add(Duration(days: 365)),
+                                                        );
+                                                        if (selectedDate != null) {
+                                                          final selectedTime = await showTimePicker(
+                                                            context: context,
+                                                            initialTime: TimeOfDay.now(),
+                                                          );
+                                                          if (selectedTime != null) {
+                                                            setState(() {
+                                                              _dataHora = DateTime(
+                                                                selectedDate.year,
+                                                                selectedDate.month,
+                                                                selectedDate.day,
+                                                                selectedTime.hour,
+                                                                selectedTime.minute,
+                                                              );
+                                                            });
+                                                          }
+                                                        }
+                                                      },
+                                                      child: Text('Selecionar'),
+                                                      style: ElevatedButton.styleFrom(
+                                                        primary: Color(0xFF003049),
+                                                        shape: RoundedRectangleBorder(
+                                                          borderRadius: BorderRadius.circular(10),
+                                                        ),
+                                                        padding: EdgeInsets.symmetric(vertical: 16),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              SizedBox(
+                                                height: 40,
+                                              ),
+                                              Text(
+                                                _dataHora != null
+                                                    ? 'Data: ${_dataHora!.day}/${_dataHora!.month}/${_dataHora!.year} Hora: ${_dataHora!.hour}:${_dataHora!.minute}'
+                                                    : '',
+                                                style: TextStyle(
+                                                  fontSize: 20
+                                                ),
+                                              ),
+                                              SizedBox(
+                                                height: 100,
+                                              ),
+                                              Center(
+                                                child: Text(
+                                                    "RESSALTAMOS: O proprietário do imóvel que fica responsável por aceitar ou recusar o pedido.",
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ),
+                                              SizedBox(
+                                                height: 15,
+                                              ),
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: ElevatedButton(
+                                                      onPressed: () async {
+                                                        var db = await Db.getConnectionImoveis();
+                                                        var col = db.collection('informacoes');
+
+                                                        var userSolicitante = widget.user;
+                                                        var userSol = userSolicitante!['email'];
+
+                                                        var idProprietario = imovel['_userId'];
+                                                        var emailSolicitante = userSol;
+
+                                                        var imovelId = imovel['_id'];
+                                                        var idImovel = imovelId;
+
+                                                        String data = '${_dataHora!.day}/${_dataHora!.month}/${_dataHora!.year}';
+                                                        String horario = '${_dataHora!.hour}:${_dataHora!.minute}';
+
+                                                        col.updateOne(mongo.where.eq('_id', idImovel), mongo.modify.push('visitasPedidas', {
+                                                          'idProprietario' : idProprietario,
+                                                          'emailSolicitante' : emailSolicitante,
+                                                          'idImovel': idImovel,
+                                                          'data' : data,
+                                                          'horario' : horario
+                                                        }));
+
+                                                        ScaffoldMessenger.of(context).showSnackBar(
+                                                          SnackBar(content: Text('Pedido de visita enviado')),
+                                                        );
+                                                        Navigator.of(context).pop();
+                                                      },
+                                                      child: Text('Enviar'),
+                                                      style: ElevatedButton.styleFrom(
+                                                        primary: Color(0xFF003049),
+                                                        shape: RoundedRectangleBorder(
+                                                          borderRadius: BorderRadius.circular(10),
+                                                        ),
+                                                        padding: EdgeInsets.symmetric(vertical: 16),
+                                                      ),
+                                                    ),
+                                                  )
+                                                ],
+                                              )
+                                            ],
+                                          ),
+                                        ),
+                                    );
+                                  },
+                                );
+                              },
+                            );
                           },
                           text: 'Agendar Visita',
                           options: FFButtonOptions(
@@ -344,79 +574,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Future<void> _saveFavorites() async {
-    final prefs = await SharedPreferences.getInstance();
-    final existingFavorites = prefs.getStringList('favoritos') ?? [];
-    final existingIds = existingFavorites.map((favorito) => jsonDecode(favorito)['_id'].toString()).toSet();
-
-    final jsonList = _favoritos
-        .where((favorito) => !existingIds.contains(favorito['_id'].toString()))
-        .map<String>((favorito) => jsonEncode(favorito))
-        .toList();
-
-    final mergedList = [...existingFavorites, ...jsonList];
-    await prefs.setStringList('favoritos', mergedList);
-  }
-
-  void toggleFavorite(Map<String, dynamic> imovel) async {
-    final key = imovel['_id'].toString();
-
-    // Check if the property is already favorited
-    bool isFavorited = false;
-    int index = 0;
-    for (int i = 0; i < _favoritos.length; i++) {
-      if (_favoritos[i]['_id'].toString() == key) {
-        isFavorited = true;
-        index = i;
-        break;
-      }
-    }
-    if (isFavorited) {
-      // Remove the property from the favorites list
-      setState(() {
-        _favoritos.removeAt(index);
-        _isFavorito = false; // Atualiza o estado do ícone de favorito
-      });
-    } else {
-      // Add the property to the favorites list
-      setState(() {
-        final novoFavorito = {...imovel};
-        _favoritos.add(novoFavorito);
-        _isFavorito = true; // Atualiza o estado do ícone de favorito
-      });
-    }
-    // Save the updated favorites list to shared preferences
-    await _saveFavorites();
-  }
-
-  void _toggleFavorito(Map<String, dynamic> imovel) async {
-    toggleFavorite(imovel);
-
-    // Recupera a lista de favoritos do SharedPreferences
-    final prefs = await SharedPreferences.getInstance();
-    final favorites = prefs.getStringList('favoritos') ?? [];
-
-    // Verifica se o imóvel atual está na lista de favoritos
-    final isFavorito = favorites.any((favorito) {
-      final decoded = jsonDecode(favorito);
-      return decoded['_id'].toString() == imovel['_id'].toString();
-    });
-
-    // Atualiza o estado do ícone de favorito
-    setState(() {
-      _isFavorito = isFavorito;
-    });
-  }
-
-  Future<void> _loadFavorites() async {
-    final prefs = await SharedPreferences.getInstance();
-    final favorites = prefs.getStringList('favoritos') ?? [];
-
-    setState(() {
-      _favoritos = favorites.map<Map<String, dynamic>>((favorito) => jsonDecode(favorito)).toList();
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -429,74 +586,48 @@ class _HomePageState extends State<HomePage> {
                 mainAxisSize: MainAxisSize.max,
                 children: [
                   Container(
-                    margin: EdgeInsets.only(top: 30, left: 30, right: 30),
+                    margin: EdgeInsets.only(top: 30, left: 30, right: 20),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        FFButtonWidget(
-                          onPressed: () async{
-                            Future<void> requestPermission()async{
-                              final status = await Permission.locationWhenInUse.request();
-                              setState(() {
-                                _permissionStatus = status;
-                              });
-                              if(_permissionStatus == PermissionStatus.granted){
-                                Navigator.push(context,MaterialPageRoute(builder: (context) => new MapsPage1()));
-                              }else{
-                                CustomSnackBarError(context, const Text('Permissão de localização negada'));
-                              }
-                            }
+                        Text("Anúncios",
+                        style: TextStyle(
+                          fontSize: 20,
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold
+                        )),
+                        Row(
+                          children: [
+                            IconButton(
+                                onPressed: (){
+                                  Future<void> requestPermission()async{
+                                    final status = await Permission.locationWhenInUse.request();
+                                    setState(() {
+                                      _permissionStatus = status;
+                                    });
+                                    if(_permissionStatus == PermissionStatus.granted){
+                                      Navigator.push(context,MaterialPageRoute(builder: (context) => new MapsPage1()));
+                                    }else{
+                                      CustomSnackBarError(context, const Text('Permissão de localização negada'));
+                                    }
+                                  }
 
-                            if(_permissionStatus == PermissionStatus.granted){
-                              Navigator.push(context,MaterialPageRoute(builder: (context) => new MapsPage1()));
-                            }
-                            if(_permissionStatus == PermissionStatus.denied || _permissionStatus != PermissionStatus.granted){
-                              requestPermission();
-                            }
-                          },
-                          text: 'Ver Mapa',
-                          icon: Icon(Icons.map_outlined),
-                          options: FFButtonOptions(
-                            width: 140,
-                            height: 50.0,
-                            padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
-                            iconPadding:
-                            EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
-                            color: Color(0xFF003049),
-                            textStyle: FlutterFlowTheme.of(context).titleSmall.override(
-                              fontFamily: 'Poppins',
-                              color: Colors.white,
+                                  if(_permissionStatus == PermissionStatus.granted){
+                                    Navigator.push(context,MaterialPageRoute(builder: (context) => new MapsPage1()));
+                                  }
+                                  if(_permissionStatus == PermissionStatus.denied || _permissionStatus != PermissionStatus.granted){
+                                    requestPermission();
+                                  }
+                                },
+                                icon: Icon(Icons.map_outlined, color: Colors.black,),
                             ),
-                            borderSide: BorderSide(
-                              color: Colors.transparent,
-                              width: 1.0,
+                            IconButton(
+                                onPressed: (){
+                                },
+                                icon: Icon(Icons.filter_alt_outlined, color: Colors.black,)
                             ),
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                        ),
-                        FFButtonWidget(
-                          onPressed: () {
-                          },
-                          text: 'Filtrar',
-                          icon: Icon(Icons.list),
-                          options: FFButtonOptions(
-                            width: 140,
-                            height: 50.0,
-                            padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
-                            iconPadding:
-                            EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
-                            color: Color(0xFF003049),
-                            textStyle: FlutterFlowTheme.of(context).titleSmall.override(
-                              fontFamily: 'Poppins',
-                              color: Colors.white,
-                            ),
-                            borderSide: BorderSide(
-                              color: Colors.transparent,
-                              width: 1.0,
-                            ),
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                        ),
+                          ],
+                        )
                       ],
                     ),
                   ),
@@ -519,7 +650,7 @@ class _HomePageState extends State<HomePage> {
                               if (snapshot.hasError) {
                                 return Center(child: Text('Error: ${snapshot.error}'));
                               }
-                              if (!snapshot.hasData) {
+                              if (_imoveis.isEmpty) {
                                 return Center(child: Text('Nenhum imóvel encontrado.'));
                               }
                               return ListView.builder(
@@ -600,7 +731,16 @@ class _HomePageState extends State<HomePage> {
                                                             ),
                                                           ),
                                                         ),
-                                                        Text('${_imoveis[index]['valores']['negocio']}')
+                                                        Container(
+                                                          width: 70,
+                                                          decoration: BoxDecoration(
+                                                            borderRadius: BorderRadius.circular(2),
+                                                            color: Color(0xFF003049),
+                                                          ),
+                                                          child: Center(
+                                                              child: Text('${_imoveis[index]['valores']['negocio']}', style: TextStyle(color: Colors.white),)
+                                                          )
+                                                        )
                                                       ],
                                                     ),
                                                   ),
@@ -610,8 +750,9 @@ class _HomePageState extends State<HomePage> {
                                                       mainAxisSize: MainAxisSize.max,
                                                       children: [
                                                         Text(
-                                                          '\n${_imoveis[index]['endereco']['rua']},\n${_imoveis[index]['endereco']['bairro']},'
+                                                          '\nRua ${_imoveis[index]['endereco']['rua']},\n${_imoveis[index]['endereco']['bairro']},'
                                                               '\n${_imoveis[index]['endereco']['cidade']} - ${_imoveis[index]['endereco']['uf']}',
+                                                          style: TextStyle(fontWeight: FontWeight.w500),
                                                         ),
                                                       ],
                                                     ),
@@ -623,7 +764,8 @@ class _HomePageState extends State<HomePage> {
                                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                       children: [
                                                         Text(
-                                                            'Valor: R\$ ${_imoveis[index]['valores']['valor']}'
+                                                            'Valor: R\$ ${_imoveis[index]['valores']['valor']}',
+                                                          style: TextStyle(color: Color(0xFF003049), fontWeight: FontWeight.bold),
                                                         ),
                                                         InkWell(
                                                           child: Icon(
@@ -631,10 +773,18 @@ class _HomePageState extends State<HomePage> {
                                                             color: _isFavorito ? Colors.red : Colors.black,
                                                           ),
                                                           onTap: () {
-                                                            _toggleFavorito(_imoveis[index]);
-                                                            setState(() {
-                                                              _isFavorito = !_isFavorito;
-                                                            });
+                                                            final imovel = _imoveis[index];
+                                                            final isFavorito = _favoritos.any((favorito) => favorito['_id'] == imovel['_id']);
+                                                            if (!isFavorito) {
+                                                              _toggleFavorito(imovel);
+                                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                                SnackBar(content: Text('Imóvel adicionado aos favoritos')),
+                                                              );
+                                                            } else {
+                                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                                SnackBar(content: Text('Este imóvel já está nos seus favoritos')),
+                                                              );
+                                                            }
                                                           },
                                                         ),
                                                       ],

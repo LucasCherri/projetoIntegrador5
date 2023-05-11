@@ -12,6 +12,7 @@ import 'Settings/db.dart';
 void main() {
   runApp(
     MaterialApp(
+      locale: const Locale('pt', 'BR'),
       home: Splash(),
       debugShowCheckedModeBanner: false,
     ),

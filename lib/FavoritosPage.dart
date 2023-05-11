@@ -28,7 +28,7 @@ class FavoritosPageState extends State<FavoritosPage> {
 
   Future<void> _loadFavorites() async {
     final prefs = await SharedPreferences.getInstance();
-    final favoritos = prefs.getStringList('favoritos') ?? [];
+    final favoritos = prefs.getStringList('imoveisFavoritos') ?? [];
     setState(() {
       _favoritos = favoritos.map<Map<String, dynamic>>((json) => Map<String, dynamic>.from(jsonDecode(json))).toList();
       _favoritosCount = _favoritos.length;
@@ -397,7 +397,16 @@ class FavoritosPageState extends State<FavoritosPage> {
                                                         ),
                                                       ),
                                                     ),
-                                                    Text('${_favoritos[index]['valores']['negocio']}')
+                                                    Container(
+                                                        width: 70,
+                                                        decoration: BoxDecoration(
+                                                          borderRadius: BorderRadius.circular(2),
+                                                          color: Color(0xFF003049),
+                                                        ),
+                                                        child: Center(
+                                                            child: Text('${_favoritos[index]['valores']['negocio']}', style: TextStyle(color: Colors.white),)
+                                                        )
+                                                    )
                                                   ],
                                                 ),
                                               ),
@@ -407,8 +416,9 @@ class FavoritosPageState extends State<FavoritosPage> {
                                                   mainAxisSize: MainAxisSize.max,
                                                   children: [
                                                     Text(
-                                                      '\n${_favoritos[index]['endereco']['rua']},\n${_favoritos[index]['endereco']['bairro']},'
+                                                      '\nRua ${_favoritos[index]['endereco']['rua']},\n${_favoritos[index]['endereco']['bairro']},'
                                                           '\n${_favoritos[index]['endereco']['cidade']} - ${_favoritos[index]['endereco']['uf']}',
+                                                      style: TextStyle(fontWeight: FontWeight.w500),
                                                     ),
                                                   ],
                                                 ),
@@ -420,7 +430,8 @@ class FavoritosPageState extends State<FavoritosPage> {
                                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                   children: [
                                                     Text(
-                                                        'Valor: R\$ ${_favoritos[index]['valores']['valor']}'
+                                                        'Valor: R\$ ${_favoritos[index]['valores']['valor']}',
+                                                      style: TextStyle(color: Color(0xFF003049), fontWeight: FontWeight.bold),
                                                     ),
                                                     InkWell(
                                                       child: Icon(
@@ -432,7 +443,10 @@ class FavoritosPageState extends State<FavoritosPage> {
                                                           _favoritos.removeAt(index);
                                                         });
                                                         final prefs = await SharedPreferences.getInstance();
-                                                        prefs.setStringList('favoritos', _favoritos.map<String>((item) => jsonEncode(item)).toList());
+                                                        prefs.setStringList('imoveisFavoritos', _favoritos.map<String>((item) => jsonEncode(item)).toList());
+                                                        ScaffoldMessenger.of(context).showSnackBar(
+                                                          SnackBar(content: Text('Imóvel retirado dos seus favoritos')),
+                                                        );
                                                       },
                                                     ),
                                                   ],
