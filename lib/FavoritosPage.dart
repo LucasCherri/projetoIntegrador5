@@ -329,7 +329,21 @@ class FavoritosPageState extends State<FavoritosPage> {
                 mainAxisSize: MainAxisSize.max,
                 children: [
                   Container(
-                      height: 600,
+                    margin: EdgeInsets.only(top: 40, left: 30),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        Text("Imóveis Favoritos",
+                            style: TextStyle(
+                                fontSize: 20,
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold
+                            )),
+                      ],
+                    ),
+                  ),
+                  Container(
+                      height: 550,
                       margin: EdgeInsets.only(top: 20),
                       child: _favoritos.isEmpty ? Center(
                         child: Text('Adicione seu primeiro imóvel aos favoritos'),

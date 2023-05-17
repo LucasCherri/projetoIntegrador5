@@ -134,18 +134,31 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
                           mainAxisSize: MainAxisSize.max,
                           children: [
                             Container(
-                                margin: EdgeInsets.only(right: 20),
-                                alignment: Alignment.topRight,
-                                child: IconButton(
-                                  icon: Icon(Icons.close,
-                                      size: 30),
-                                  onPressed: () {
-                                    Navigator.of(context).pop();
-                                  },
-                                )
+                              margin: EdgeInsets.only(top: 30, left: 30, right: 30),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text("Seus anúncios",
+                                      style: TextStyle(
+                                          fontSize: 25,
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.bold
+                                      )),
+                                  IconButton(
+                                    icon: Icon(Icons.close,
+                                        size: 30),
+                                    onPressed: () {
+                                      Navigator.of(context).pop();
+                                    },
+                                  )
+                                ],
+                              ),
+                            ),
+                            SizedBox(
+                              height: 20,
                             ),
                             Container(
-                                height: 600,
+                                height: 550,
                                 child: SizedBox(
                                   child: FutureBuilder(
                                       future: getImoveis(),
@@ -214,7 +227,7 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
                                                                   return Image.memory(
                                                                     base64Decode(_imoveis[index]['imagens'][imgIndex]),
                                                                     fit: BoxFit.cover,
-                                                                    width: 300,
+                                                                    width: MediaQuery.of(context).size.width,
                                                                   );
                                                                 },
                                                               ),
@@ -745,24 +758,38 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
                 body: Container(
                     width: double.infinity,
                     height: double.infinity,
-                    color: Colors.white,
+                    color: Color(0xFF003049),
                     child: SingleChildScrollView(
                         child: Column(
                           mainAxisSize: MainAxisSize.max,
                           children: [
                             Container(
-                                margin: EdgeInsets.only(right: 20),
-                                alignment: Alignment.topRight,
-                                child: IconButton(
-                                  icon: Icon(Icons.close,
-                                      size: 30),
-                                  onPressed: () {
-                                    Navigator.of(context).pop();
-                                  },
-                                )
+                              margin: EdgeInsets.only(top: 30, left: 30, right: 30),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text("Notificações",
+                                      style: TextStyle(
+                                          fontSize: 25,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold
+                                      )),
+                                  IconButton(
+                                    icon: Icon(Icons.close,
+                                        color: Colors.white,
+                                        size: 30),
+                                    onPressed: () {
+                                      Navigator.of(context).pop();
+                                    },
+                                  )
+                                ],
+                              ),
+                            ),
+                            SizedBox(
+                              height: 20,
                             ),
                             Container(
-                              height: 550,
+                              height: 500,
                               child: SizedBox(
                                 child: FutureBuilder(
                                     future: getNotificacoes(),
@@ -773,15 +800,22 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
                                                 SizedBox(height: 10,),
-                                                Text("Carregando suas notificações...")
+                                                Text("Carregando suas notificações...",
+                                                style: TextStyle(
+                                                  color: Colors.white
+                                                ),)
                                               ],
                                             ));
                                       }
                                       if (snapshot.hasError) {
-                                        return Center(child: Text('Error: ${snapshot.error}'));
+                                        return Center(child: Text('Error: ${snapshot.error}', style: TextStyle(
+                                            color: Colors.white
+                                        ),));
                                       }
                                       if (_notificacoes.isEmpty) {
-                                        return Center(child: Text('Nenhuma notificação encontrada.'));
+                                        return Center(child: Text('Nenhuma notificação encontrada.', style: TextStyle(
+                                            color: Colors.white
+                                        ),));
                                       }
                                       return ListView.builder(
                                           itemCount: _notificacoes.length,
@@ -818,11 +852,19 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
                                                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                             children: [
                                                               Text(
-                                                                '\nSeu pedido de visita foi: ${_notificacoes[index]['status']}',
+                                                                '\nPedido de visita:',
                                                                 style: TextStyle(
                                                                     color: Color(0xFF003049),
                                                                     fontWeight: FontWeight.bold,
                                                                     fontSize: 16
+                                                                ),
+                                                              ),
+                                                              Text(
+                                                                '\t\t${_notificacoes[index]['status']}',
+                                                                style: TextStyle(
+                                                                  color: _notificacoes[index]['status'] == 'Aceito' ? Colors.green : Colors.red,
+                                                                  fontWeight: FontWeight.bold,
+                                                                  fontSize: 16,
                                                                 ),
                                                               ),
                                                             ],
@@ -1433,7 +1475,6 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    bool temNotificacoes = _notificacoes.isNotEmpty;
 
     var doc = widget.user;
     var nome = doc!['nome'];
@@ -1675,8 +1716,8 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
                           mainAxisSize: MainAxisSize.max,
                           children: [
                             Icon(
-                              temNotificacoes ? Icons.notifications_active_outlined : Icons.notifications_none,
-                              color: temNotificacoes ? Colors.red : Colors.black,
+                              _notificacoes.isEmpty ? Icons.notifications_none : Icons.notifications_active_outlined,
+                              color: _notificacoes.isEmpty ? Colors.black : Colors.red,
                               size: 18,
                             ),
                             InkWell(

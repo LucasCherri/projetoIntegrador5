@@ -749,7 +749,7 @@ class _HomePageState extends State<HomePage> {
                                                         return Image.memory(
                                                           base64Decode(_imoveis[index]['imagens'][imgIndex]),
                                                           fit: BoxFit.cover,
-                                                          width: 300,
+                                                          width: MediaQuery.of(context).size.width,
                                                         );
                                                       },
                                                     ),

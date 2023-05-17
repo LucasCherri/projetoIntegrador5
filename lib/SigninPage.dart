@@ -38,7 +38,7 @@ class _LoginPageState extends State<LoginPage> {
 
   final _formKey = GlobalKey<FormState>();
   User user = User("", "", "", "", "", "", "");
-  String url = "http://172.16.12.128:8080/login";
+  String url = "http://172.16.192.95:8080/login";
 
   Future login() async {
 

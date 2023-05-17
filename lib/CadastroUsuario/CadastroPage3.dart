@@ -36,7 +36,7 @@ class _CadastroPage3State extends State<CadastroPage3>{
 
   final _formKey = GlobalKey<FormState>();
   User user = User("", "", "", "", "", "", "");
-  String url = "http://192.168.15.165:8080/register";
+  String url = "http://172.16.192.95:8080/register";
 
   Future save() async {
 

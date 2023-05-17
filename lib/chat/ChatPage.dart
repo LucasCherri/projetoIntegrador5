@@ -22,7 +22,7 @@ class _ChatPageState extends State<ChatPage> {
 
     return Scaffold(
       body: SingleChildScrollView(
-        padding: EdgeInsets.only(top: 60, right: 30, left: 30),
+        padding: EdgeInsets.only(top: 40, right: 30, left: 30),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
