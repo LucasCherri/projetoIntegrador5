@@ -58,32 +58,45 @@ class _CadastroImovelPage1State extends State<CadastroImovelPage1> {
             child: Column(
               mainAxisSize: MainAxisSize.max,
               children: [
+                Container(
+                  width: double.infinity,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: Color(0xFF003049),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Cadastro de Imóvel - \nEndereço',
+                    textAlign: TextAlign.center,
+                    style: FlutterFlowTheme.of(context).bodyMedium.override(
+                      fontFamily: 'Poppins',
+                      color: FlutterFlowTheme.of(context).lineColor,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
                 Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(0.0, 60.0, 0.0, 0.0),
+                  padding: EdgeInsetsDirectional.fromSTEB(0, 0, 20, 0),
                   child: Row(
                     mainAxisSize: MainAxisSize.max,
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Text(
-                        'Cadastro de Imóvel - \nEndereço',
-                        style: FlutterFlowTheme.of(context).bodyMedium.override(
-                          fontFamily: 'Poppins',
-                          fontSize: 26.0,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
                       FlutterFlowIconButton(
                         borderColor: Colors.transparent,
-                        borderRadius: 30.0,
-                        borderWidth: 1.0,
-                        buttonSize: 60.0,
+                        borderRadius: 30,
+                        borderWidth: 1,
+                        buttonSize: 60,
                         icon: FaIcon(
                           FontAwesomeIcons.arrowAltCircleLeft,
                           color: FlutterFlowTheme.of(context).primaryText,
-                          size: 30.0,
+                          size: 30,
                         ),
                         onPressed: () {
+
                           var doc = widget.user;
+
+                          //Navigator.pop(context);
                           Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => navbar(user: doc)),);
                         },
                       ),
@@ -93,7 +106,7 @@ class _CadastroImovelPage1State extends State<CadastroImovelPage1> {
                 Align(
                   alignment: AlignmentDirectional(-0.8, 0.0),
                   child: Padding(
-                    padding: EdgeInsetsDirectional.fromSTEB(0.0, 50.0, 0.0, 0.0),
+                    padding: EdgeInsetsDirectional.fromSTEB(0.0, 10.0, 0.0, 0.0),
                     child: Text(
                       'Rua',
                       style: FlutterFlowTheme.of(context).bodyMedium.override(
@@ -107,7 +120,7 @@ class _CadastroImovelPage1State extends State<CadastroImovelPage1> {
                   width: double.infinity,
                   decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
-                      color: Color(0xFFCED6E0),
+                      color: Color(0xFFDCE1EE),
                       border: Border.all(width: 2, color: Colors.black)
                   ),
                   margin: EdgeInsets.only(left: 30, right: 30),
@@ -141,7 +154,7 @@ class _CadastroImovelPage1State extends State<CadastroImovelPage1> {
                   width: double.infinity,
                   decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
-                      color: Color(0xFFCED6E0),
+                      color: Color(0xFFDCE1EE),
                       border: Border.all(width: 2, color: Colors.black)
                   ),
                   margin: EdgeInsets.only(left: 30, right: 30),
@@ -189,7 +202,7 @@ class _CadastroImovelPage1State extends State<CadastroImovelPage1> {
                               width: 106.8,
                               decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(10),
-                                  color: Color(0xFFCED6E0),
+                                  color: Color(0xFFDCE1EE),
                                   border: Border.all(width: 2, color: Colors.black)
                               ),
                               child: TextFormField(
@@ -230,7 +243,7 @@ class _CadastroImovelPage1State extends State<CadastroImovelPage1> {
                                 width: 100.3,
                                 decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(10),
-                                    color: Color(0xFFCED6E0),
+                                    color: Color(0xFFDCE1EE),
                                     border: Border.all(width: 2, color: Colors.black)
                                 ),
                                 child: TextFormField(
@@ -289,7 +302,7 @@ class _CadastroImovelPage1State extends State<CadastroImovelPage1> {
                                 ),
                                 textStyle:
                                 FlutterFlowTheme.of(context).bodyMedium,
-                                fillColor: Color(0xFFCED6E0),
+                                fillColor: Color(0xFFDCE1EE),
                                 elevation: 2,
                                 borderColor:
                                 FlutterFlowTheme.of(context).primaryText,
@@ -324,7 +337,7 @@ class _CadastroImovelPage1State extends State<CadastroImovelPage1> {
                   width: double.infinity,
                   decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
-                      color: Color(0xFFCED6E0),
+                      color: Color(0xFFDCE1EE),
                       border: Border.all(width: 2, color: Colors.black)
                   ),
                   margin: EdgeInsets.only(left: 30, right: 30),

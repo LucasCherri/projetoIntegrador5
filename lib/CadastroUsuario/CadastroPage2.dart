@@ -30,7 +30,7 @@ class _CadastroPage2State extends State<CadastroPage2>{
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: EdgeInsets.only(left: 20, top: 50, bottom: 50),
+                padding: EdgeInsets.only(left: 30, right: 30, top: 50, bottom: 50),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -42,7 +42,9 @@ class _CadastroPage2State extends State<CadastroPage2>{
                       ),
                     ),
                     IconButton(
-                      icon: Icon(Icons.arrow_circle_left_outlined),
+                      icon: Icon(Icons.arrow_circle_left_outlined,
+                      size: 35
+                      ),
                       onPressed: () {
                         Navigator.pop(context);
                       },
@@ -69,7 +71,7 @@ class _CadastroPage2State extends State<CadastroPage2>{
                       Container(
                         decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(10),
-                            color: Color(0xFFCED6E0),
+                            color: Color(0xFFDCE1EE),
                             border: Border.all(width: 1, color: Colors.black)
                         ),
                         child: TextFormField(
@@ -102,7 +104,7 @@ class _CadastroPage2State extends State<CadastroPage2>{
                       Container(
                         decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(10),
-                            color: Color(0xFFCED6E0),
+                            color: Color(0xFFDCE1EE),
                             border: Border.all(width: 1, color: Colors.black)
                         ),
                         child: TextFormField(
@@ -135,7 +137,7 @@ class _CadastroPage2State extends State<CadastroPage2>{
                       Container(
                         decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(10),
-                            color: Color(0xFFCED6E0),
+                            color: Color(0xFFDCE1EE),
                             border: Border.all(width: 1, color: Colors.black)
                         ),
                         child: TextFormField(

@@ -56,32 +56,43 @@ class _CadastroImovelPage4State
             child: Column(
               mainAxisSize: MainAxisSize.max,
               children: [
+                Container(
+                  width: double.infinity,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: Color(0xFF003049),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Cadastro de Imóvel - \nCaracterísticas',
+                    textAlign: TextAlign.center,
+                    style: FlutterFlowTheme.of(context).bodyMedium.override(
+                      fontFamily: 'Poppins',
+                      color: FlutterFlowTheme.of(context).lineColor,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
                 Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(0.0, 60.0, 0.0, 0.0),
+                  padding: EdgeInsetsDirectional.fromSTEB(0, 0, 20, 0),
                   child: Row(
                     mainAxisSize: MainAxisSize.max,
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Text(
-                        'Cadastro de Imóvel - \nCaracterísticas',
-                        style: FlutterFlowTheme.of(context).bodyMedium.override(
-                          fontFamily: 'Poppins',
-                          fontSize: 26.0,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
                       FlutterFlowIconButton(
                         borderColor: Colors.transparent,
-                        borderRadius: 30.0,
-                        borderWidth: 1.0,
-                        buttonSize: 60.0,
+                        borderRadius: 30,
+                        borderWidth: 1,
+                        buttonSize: 60,
                         icon: FaIcon(
                           FontAwesomeIcons.arrowAltCircleLeft,
                           color: FlutterFlowTheme.of(context).primaryText,
-                          size: 30.0,
+                          size: 30,
                         ),
                         onPressed: () {
                           Navigator.pop(context);
+                          //Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => navbar(user: doc)),);
                         },
                       ),
                     ],
@@ -90,7 +101,7 @@ class _CadastroImovelPage4State
                 Align(
                   alignment: AlignmentDirectional(0.05, -0.05),
                   child: Padding(
-                    padding: EdgeInsetsDirectional.fromSTEB(30.0, 30.0, 0.0, 0.0),
+                    padding: EdgeInsetsDirectional.fromSTEB(30.0, 10.0, 0.0, 0.0),
                     child: Row(
                       mainAxisSize: MainAxisSize.max,
                       mainAxisAlignment: MainAxisAlignment.start,

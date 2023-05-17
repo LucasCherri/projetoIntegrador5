@@ -50,7 +50,8 @@ class _RedefinirSenhaState extends State<RedefinirSenha> {
       backgroundColor: Color(0xffF0F0F0),
       body: SingleChildScrollView(
         child: Container(
-          padding: EdgeInsets.all(16),
+          margin: EdgeInsets.only(left: 30, right: 30),
+          padding: EdgeInsets.all(0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -67,7 +68,8 @@ class _RedefinirSenhaState extends State<RedefinirSenha> {
                       ),
                     ),
                     IconButton(
-                      icon: Icon(Icons.close),
+                      icon: Icon(Icons.close,
+                      size: 30),
                       onPressed: () {
                         Navigator.pop(context);
                       },
@@ -88,7 +90,7 @@ class _RedefinirSenhaState extends State<RedefinirSenha> {
               Container(
                 decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
-                    color: Color(0xFFCED6E0),
+                    color: Color(0xFFDCE1EE),
                     border: Border.all(width: 1, color: Colors.black)
                 ),
                 child: TextFormField(
@@ -115,7 +117,7 @@ class _RedefinirSenhaState extends State<RedefinirSenha> {
               Container(
                 decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
-                    color: Color(0xFFCED6E0),
+                    color: Color(0xFFDCE1EE),
                     border: Border.all(width: 1, color: Colors.black)
                 ),
                 child: TextFormField(
@@ -201,7 +203,7 @@ class _RedefinirSenhaState extends State<RedefinirSenha> {
                                       margin: EdgeInsets.only(left: 20, right: 20),
                                       decoration: BoxDecoration(
                                           borderRadius: BorderRadius.circular(10),
-                                          color: Color(0xFFCED6E0),
+                                          color: Color(0xFFDCE1EE),
                                           border: Border.all(width: 1, color: Colors.black)
                                       ),
                                       child: TextFormField(

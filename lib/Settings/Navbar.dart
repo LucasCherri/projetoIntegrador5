@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:front_projeto_quintoandar/ChatPage.dart';
+import 'package:front_projeto_quintoandar/chat/ChatPage.dart';
 import 'package:front_projeto_quintoandar/FavoritosPage.dart';
 import 'package:front_projeto_quintoandar/PerfilPage.dart';
 import '../HomePage.dart';
@@ -25,8 +25,8 @@ class _navbarState extends State<navbar> {
 
   late List<Widget> _telas = [
     HomePage(user: doc),
-    FavoritosPage(),
-    ChatPage(),
+    FavoritosPage(user: doc),
+    ChatPage(user: doc),
     PerfilPage(user: doc)
   ];
 

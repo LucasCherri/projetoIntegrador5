@@ -213,7 +213,7 @@ class _SuaContaPageState extends State<SuaContaPage> {
                     width: double.infinity,
                     decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(10),
-                        color: Color(0xFFCED6E0),
+                        color: Color(0xFFDCE1EE),
                         border: Border.all(width: 2, color: Colors.black)
                     ),
                     child: TextFormField(
@@ -248,7 +248,7 @@ class _SuaContaPageState extends State<SuaContaPage> {
                     width: double.infinity,
                     decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(10),
-                        color: Color(0xFFCED6E0),
+                        color: Color(0xFFDCE1EE),
                         border: Border.all(width: 2, color: Colors.black)
                     ),
                     child: TextFormField(
@@ -283,7 +283,7 @@ class _SuaContaPageState extends State<SuaContaPage> {
                     width: double.infinity,
                     decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(10),
-                        color: Color(0xFFCED6E0),
+                        color: Color(0xFFDCE1EE),
                         border: Border.all(width: 2, color: Colors.black)
                     ),
                     child: TextFormField(
@@ -318,7 +318,7 @@ class _SuaContaPageState extends State<SuaContaPage> {
                     width: double.infinity,
                     decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(10),
-                        color: Color(0xFFCED6E0),
+                        color: Color(0xFFDCE1EE),
                         border: Border.all(width: 2, color: Colors.black)
                     ),
                     child: TextFormField(
@@ -353,7 +353,7 @@ class _SuaContaPageState extends State<SuaContaPage> {
                     width: double.infinity,
                     decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(10),
-                        color: Color(0xFFCED6E0),
+                        color: Color(0xFFDCE1EE),
                         border: Border.all(width: 2, color: Colors.black)
                     ),
                     child: TextFormField(

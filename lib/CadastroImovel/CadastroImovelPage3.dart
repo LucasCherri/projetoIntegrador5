@@ -59,7 +59,7 @@ class _CadastroImovelPage3State extends State<CadastroImovelPage3> {
           Uint8List.fromList(bytes),
           minHeight: 600, // ajuste conforme necessário
           minWidth: 800, // ajuste conforme necessário
-          quality: 65, // ajuste conforme necessário
+          quality: 55, // ajuste conforme necessário
           format: CompressFormat.jpeg, // ajuste conforme necessário
         );
         String base64Image = base64Encode(compressedBytes);
@@ -98,20 +98,30 @@ class _CadastroImovelPage3State extends State<CadastroImovelPage3> {
             child: Column(
               mainAxisSize: MainAxisSize.max,
               children: [
+                Container(
+                  width: double.infinity,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: Color(0xFF003049),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Cadastro de Imóvel - \nFotos',
+                    textAlign: TextAlign.center,
+                    style: FlutterFlowTheme.of(context).bodyMedium.override(
+                      fontFamily: 'Poppins',
+                      color: FlutterFlowTheme.of(context).lineColor,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
                 Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(0, 60, 0, 0),
+                  padding: EdgeInsetsDirectional.fromSTEB(0, 0, 20, 0),
                   child: Row(
                     mainAxisSize: MainAxisSize.max,
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Text(
-                        'Cadastro de Imóvel - \nFotos',
-                        style: FlutterFlowTheme.of(context).bodyMedium.override(
-                          fontFamily: 'Poppins',
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
                       FlutterFlowIconButton(
                         borderColor: Colors.transparent,
                         borderRadius: 30,
@@ -124,13 +134,14 @@ class _CadastroImovelPage3State extends State<CadastroImovelPage3> {
                         ),
                         onPressed: () {
                           Navigator.pop(context);
+                          //Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => navbar(user: doc)),);
                         },
                       ),
                     ],
                   ),
                 ),
                 Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(30, 60, 30, 0),
+                  padding: EdgeInsetsDirectional.fromSTEB(30, 20, 30, 0),
                   child: FFButtonWidget(
                     onPressed: () async{
                       tirarFotos();

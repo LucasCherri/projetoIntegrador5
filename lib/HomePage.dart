@@ -78,8 +78,11 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _saveFavorites() async {
+    var doc = widget.user;
+    var id = doc!['_id'];
+
     final prefs = await SharedPreferences.getInstance();
-    final existingFavorites = prefs.getStringList('imoveisFavoritos') ?? [];
+    final existingFavorites = prefs.getStringList('$id') ?? [];
     final existingIds = existingFavorites.map((favorito) => jsonDecode(favorito)['_id'].toString()).toSet();
 
     final jsonList = _favoritos
@@ -88,7 +91,7 @@ class _HomePageState extends State<HomePage> {
         .toList();
 
     final mergedList = [...existingFavorites, ...jsonList];
-    await prefs.setStringList('imoveisFavoritos', mergedList);
+    await prefs.setStringList('$id', mergedList);
   }
 
   void toggleFavorite(Map<String, dynamic> imovel) async {
@@ -121,8 +124,11 @@ class _HomePageState extends State<HomePage> {
   void _toggleFavorito(Map<String, dynamic> imovel) async {
     toggleFavorite(imovel);
 
+    var doc = widget.user;
+    var id = doc!['_id'];
+
     final prefs = await SharedPreferences.getInstance();
-    final favorites = prefs.getStringList('imoveisFavoritos') ?? [];
+    final favorites = prefs.getStringList('$id') ?? [];
 
     final isFavorito = favorites.any((favorito) {
       final decoded = jsonDecode(favorito);
@@ -135,15 +141,17 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadFavorites() async {
+    var doc = widget.user;
+    var id = doc!['_id'];
     final prefs = await SharedPreferences.getInstance();
-    final favorites = prefs.getStringList('imoveisFavoritos') ?? [];
+    final favorites = prefs.getStringList('$id') ?? [];
 
     setState(() {
       _favoritos = favorites.map<Map<String, dynamic>>((favorito) => jsonDecode(favorito)).toList();
     });
   }
 
-  void exibirDetalhes(Map<String, dynamic> imovel) {
+  void exibirDetalhes(Map<String, dynamic> imovel) async{
 
     String mobiliaText = '';
     if (imovel['caracteristicas']['mobilias'] != null && imovel['caracteristicas']['mobilias'].isNotEmpty) {
@@ -208,14 +216,49 @@ class _HomePageState extends State<HomePage> {
                         width: double.infinity,
                         color: Colors.white,
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            IconButton(
-                              icon: Icon(Icons.close),
-                              color: Colors.black,
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                              },
+                            Container(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  IconButton(
+                                    icon: Icon(Icons.chat_outlined),
+                                    color: Colors.black,
+                                    onPressed: () async{
+                                      var db = await Db.getConnection();
+                                      var col = db.collection('user');
+
+                                      var id = imovel['_userId'];
+
+                                      var doc = await col.findOne(mongo.where.eq('_id', id));
+                                      String email = doc!['email'];
+
+                                      showDialog(
+                                        context: context,
+                                        builder: (BuildContext context) {
+                                          return AlertDialog(
+                                            title: Text("Chat do proprietário"),
+                                            content: Text("Use o email: $email"),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(context),
+                                                child: Text("Fechar"),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      );
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: Icon(Icons.close),
+                                    color: Colors.black,
+                                    onPressed: () {
+                                      Navigator.of(context).pop();
+                                    },
+                                  ),
+                                ],
+                              ),
                             ),
                             Expanded(
                               child: ListView.builder(

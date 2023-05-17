@@ -2,14 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:front_projeto_quintoandar/Error/NetErrorPage.dart';
 import 'package:front_projeto_quintoandar/FirstPage.dart';
 import 'package:front_projeto_quintoandar/Settings/Navbar.dart';
+import 'package:front_projeto_quintoandar/chat/utils.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:mongo_dart/mongo_dart.dart' as mongo;
+import 'package:zego_zimkit/services/services.dart';
 
 import 'Settings/db.dart';
 
 void main() {
+  ZIMKit().init(
+      appID: Utils.id,
+    appSign: Utils.SignIn
+  );
   runApp(
     MaterialApp(
       locale: const Locale('pt', 'BR'),

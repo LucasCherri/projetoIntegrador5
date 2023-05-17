@@ -8,7 +8,9 @@ import 'maps/MapsPage2.dart';
 
 class FavoritosPage extends StatefulWidget {
 
-  FavoritosPage({Key? key}) : super(key: key);
+  Map<String, dynamic>? user;
+
+  FavoritosPage({Key? key, required this.user}) : super(key: key);
 
   @override
   FavoritosPageState createState() => FavoritosPageState();
@@ -27,14 +29,15 @@ class FavoritosPageState extends State<FavoritosPage> {
   }
 
   Future<void> _loadFavorites() async {
+    var doc = widget.user;
+    var id = doc!['_id'];
+
     final prefs = await SharedPreferences.getInstance();
-    final favoritos = prefs.getStringList('imoveisFavoritos') ?? [];
+    final favoritos = prefs.getStringList('$id') ?? [];
     setState(() {
       _favoritos = favoritos.map<Map<String, dynamic>>((json) => Map<String, dynamic>.from(jsonDecode(json))).toList();
       _favoritosCount = _favoritos.length;
     });
-    print(_favoritosCount);
-    print(_favoritos);
   }
 
   void exibirDetalhes(Map<String, dynamic> imovel) {
@@ -312,6 +315,10 @@ class FavoritosPageState extends State<FavoritosPage> {
 
   @override
   Widget build(BuildContext context) {
+
+    var doc = widget.user;
+    var id = doc!['_id'];
+
     return Scaffold(
       body: Container(
           width: double.infinity,
@@ -443,7 +450,7 @@ class FavoritosPageState extends State<FavoritosPage> {
                                                           _favoritos.removeAt(index);
                                                         });
                                                         final prefs = await SharedPreferences.getInstance();
-                                                        prefs.setStringList('imoveisFavoritos', _favoritos.map<String>((item) => jsonEncode(item)).toList());
+                                                        prefs.setStringList('$id', _favoritos.map<String>((item) => jsonEncode(item)).toList());
                                                         ScaffoldMessenger.of(context).showSnackBar(
                                                           SnackBar(content: Text('Imóvel retirado dos seus favoritos')),
                                                         );

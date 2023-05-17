@@ -19,7 +19,7 @@ class _CadastroPage1State extends State<CadastroPage1> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: EdgeInsets.only(top: 50, bottom: 50),
+              padding: EdgeInsets.only(top: 50, bottom: 50, left: 10, right: 10),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -31,7 +31,9 @@ class _CadastroPage1State extends State<CadastroPage1> {
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.close),
+                    icon: Icon(Icons.close,
+                    size: 30
+                    ),
                     onPressed: () {
                       Navigator.pop(context);
                     },
@@ -56,7 +58,7 @@ class _CadastroPage1State extends State<CadastroPage1> {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
                   border: Border.all(width: 1, color: Colors.black),
-                color: Color(0xFFCED6E0),
+                color: Color(0xFFDCE1EE),
               ),
               child: DropdownButton<String>(
                 value: _selectedOption,

@@ -116,32 +116,43 @@ class _CadastroImovelPage5State extends State<CadastroImovelPage5> {
             child: Column(
               mainAxisSize: MainAxisSize.max,
               children: [
+                Container(
+                  width: double.infinity,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: Color(0xFF003049),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Cadastro de Imóvel - \nValores',
+                    textAlign: TextAlign.center,
+                    style: FlutterFlowTheme.of(context).bodyMedium.override(
+                      fontFamily: 'Poppins',
+                      color: FlutterFlowTheme.of(context).lineColor,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
                 Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(0.0, 60.0, 0.0, 0.0),
+                  padding: EdgeInsetsDirectional.fromSTEB(0, 0, 20, 0),
                   child: Row(
                     mainAxisSize: MainAxisSize.max,
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Text(
-                        'Cadastro de Imóvel - \nValores',
-                        style: FlutterFlowTheme.of(context).bodyMedium.override(
-                          fontFamily: 'Poppins',
-                          fontSize: 26.0,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
                       FlutterFlowIconButton(
                         borderColor: Colors.transparent,
-                        borderRadius: 30.0,
-                        borderWidth: 1.0,
-                        buttonSize: 60.0,
+                        borderRadius: 30,
+                        borderWidth: 1,
+                        buttonSize: 60,
                         icon: FaIcon(
                           FontAwesomeIcons.arrowAltCircleLeft,
                           color: FlutterFlowTheme.of(context).primaryText,
-                          size: 30.0,
+                          size: 30,
                         ),
                         onPressed: () {
                           Navigator.pop(context);
+                          //Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => navbar(user: doc)),);
                         },
                       ),
                     ],
@@ -150,7 +161,7 @@ class _CadastroImovelPage5State extends State<CadastroImovelPage5> {
                 Align(
                   alignment: AlignmentDirectional(-0.7, 0.0),
                   child: Padding(
-                    padding: EdgeInsetsDirectional.fromSTEB(0.0, 40.0, 0.0, 0.0),
+                    padding: EdgeInsetsDirectional.fromSTEB(0.0, 10.0, 0.0, 0.0),
                     child: Text(
                       'Tipo de negócio',
                       style: FlutterFlowTheme.of(context).bodyMedium.override(
@@ -177,7 +188,7 @@ class _CadastroImovelPage5State extends State<CadastroImovelPage5> {
                     ),
                     textStyle: FlutterFlowTheme.of(context).bodyMedium,
                     searchHintText: 'Search for an item...',
-                    fillColor: Color(0xFFCED6E0),
+                    fillColor: Color(0xFFDCE1EE),
                     elevation: 2.0,
                     borderColor: FlutterFlowTheme.of(context).primaryText,
                     borderWidth: 2.0,
@@ -206,7 +217,7 @@ class _CadastroImovelPage5State extends State<CadastroImovelPage5> {
                     width: double.infinity,
                     decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(10),
-                        color: Color(0xFFCED6E0),
+                        color: Color(0xFFDCE1EE),
                         border: Border.all(width: 2, color: Colors.black)
                     ),
                     child: TextFormField(
@@ -255,7 +266,7 @@ class _CadastroImovelPage5State extends State<CadastroImovelPage5> {
                     width: double.infinity,
                     decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(10),
-                        color: Color(0xFFCED6E0),
+                        color: Color(0xFFDCE1EE),
                         border: Border.all(width: 2, color: Colors.black)
                     ),
                     child: TextFormField(
@@ -304,7 +315,7 @@ class _CadastroImovelPage5State extends State<CadastroImovelPage5> {
                     width: double.infinity,
                     decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(10),
-                        color: Color(0xFFCED6E0),
+                        color: Color(0xFFDCE1EE),
                         border: Border.all(width: 2, color: Colors.black)
                     ),
                     child: TextFormField(
@@ -353,7 +364,7 @@ class _CadastroImovelPage5State extends State<CadastroImovelPage5> {
                     width: double.infinity,
                     decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(10),
-                        color: Color(0xFFCED6E0),
+                        color: Color(0xFFDCE1EE),
                         border: Border.all(width: 2, color: Colors.black)
                     ),
                     child: TextFormField(
@@ -371,7 +382,7 @@ class _CadastroImovelPage5State extends State<CadastroImovelPage5> {
                   ),
                 ),
                 Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(0.0, 40.0, 0.0, 0.0),
+                  padding: EdgeInsetsDirectional.fromSTEB(30.0, 40.0, 30.0, 0.0),
                   child: FFButtonWidget(
                     onPressed: () async{
 
@@ -468,7 +479,7 @@ class _CadastroImovelPage5State extends State<CadastroImovelPage5> {
                     },
                     text: 'Concluir Cadastro',
                     options: FFButtonOptions(
-                      width: 337.0,
+                      width: double.infinity,
                       height: 61.0,
                       padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
                       iconPadding:

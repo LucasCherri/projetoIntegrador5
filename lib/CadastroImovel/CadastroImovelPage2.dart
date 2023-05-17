@@ -57,32 +57,43 @@ class _CadastroImovelPage2State extends State<CadastroImovelPage2> {
             child: Column(
               mainAxisSize: MainAxisSize.max,
               children: [
+                Container(
+                  width: double.infinity,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: Color(0xFF003049),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Cadastro de Imóvel - \nTipo de Imóvel',
+                    textAlign: TextAlign.center,
+                    style: FlutterFlowTheme.of(context).bodyMedium.override(
+                      fontFamily: 'Poppins',
+                      color: FlutterFlowTheme.of(context).lineColor,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
                 Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(0.0, 60.0, 0.0, 0.0),
+                  padding: EdgeInsetsDirectional.fromSTEB(0, 0, 20, 0),
                   child: Row(
                     mainAxisSize: MainAxisSize.max,
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Text(
-                        'Cadastro de Imóvel - \nTipo de Imóvel',
-                        style: FlutterFlowTheme.of(context).bodyMedium.override(
-                          fontFamily: 'Poppins',
-                          fontSize: 26.0,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
                       FlutterFlowIconButton(
                         borderColor: Colors.transparent,
-                        borderRadius: 30.0,
-                        borderWidth: 1.0,
-                        buttonSize: 60.0,
+                        borderRadius: 30,
+                        borderWidth: 1,
+                        buttonSize: 60,
                         icon: FaIcon(
                           FontAwesomeIcons.arrowAltCircleLeft,
                           color: FlutterFlowTheme.of(context).primaryText,
-                          size: 30.0,
+                          size: 30,
                         ),
                         onPressed: () {
                           Navigator.pop(context);
+                          //Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => navbar(user: doc)),);
                         },
                       ),
                     ],
@@ -91,7 +102,7 @@ class _CadastroImovelPage2State extends State<CadastroImovelPage2> {
                 Align(
                   alignment: AlignmentDirectional(-0.65, 0.0),
                   child: Padding(
-                    padding: EdgeInsetsDirectional.fromSTEB(0.0, 50.0, 0.0, 0.0),
+                    padding: EdgeInsetsDirectional.fromSTEB(0.0, 10.0, 0.0, 0.0),
                     child: Text(
                       'Título do Anúncio',
                       style: FlutterFlowTheme.of(context).bodyMedium.override(
@@ -105,7 +116,7 @@ class _CadastroImovelPage2State extends State<CadastroImovelPage2> {
                   width: double.infinity,
                   decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
-                      color: Color(0xFFCED6E0),
+                      color: Color(0xFFDCE1EE),
                       border: Border.all(width: 2, color: Colors.black)
                   ),
                   margin: EdgeInsets.only(left: 30, right: 30),
@@ -160,7 +171,7 @@ class _CadastroImovelPage2State extends State<CadastroImovelPage2> {
                           EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
                           iconPadding:
                           EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
-                          color: botao1Selecionado ? Color(0xFF003049) : Color(0xFFCED6E0),
+                          color: botao1Selecionado ? Color(0xFF003049) : Color(0xFFDCE1EE),
                           textStyle: FlutterFlowTheme.of(context)
                               .titleSmall
                               .override(
@@ -195,7 +206,7 @@ class _CadastroImovelPage2State extends State<CadastroImovelPage2> {
                                 0.0, 0.0, 0.0, 0.0),
                             iconPadding: EdgeInsetsDirectional.fromSTEB(
                                 0.0, 0.0, 0.0, 0.0),
-                            color: botao2Selecionado ? Color(0xFF003049) : Color(0xFFCED6E0),
+                            color: botao2Selecionado ? Color(0xFF003049) : Color(0xFFDCE1EE),
                             textStyle: FlutterFlowTheme.of(context)
                                 .titleSmall
                                 .override(
@@ -231,7 +242,7 @@ class _CadastroImovelPage2State extends State<CadastroImovelPage2> {
                                 0.0, 0.0, 0.0, 0.0),
                             iconPadding: EdgeInsetsDirectional.fromSTEB(
                                 0.0, 0.0, 0.0, 0.0),
-                            color: botao3Selecionado ? Color(0xFF003049) : Color(0xFFCED6E0),
+                            color: botao3Selecionado ? Color(0xFF003049) : Color(0xFFDCE1EE),
                             textStyle: FlutterFlowTheme.of(context)
                                 .titleSmall
                                 .override(
@@ -271,7 +282,7 @@ class _CadastroImovelPage2State extends State<CadastroImovelPage2> {
                         EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
                         iconPadding:
                         EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
-                        color: botao4Selecionado ? Color(0xFF003049) : Color(0xFFCED6E0),
+                        color: botao4Selecionado ? Color(0xFF003049) : Color(0xFFDCE1EE),
                         textStyle:
                         FlutterFlowTheme.of(context).titleSmall.override(
                           fontFamily: 'Poppins',
@@ -303,7 +314,7 @@ class _CadastroImovelPage2State extends State<CadastroImovelPage2> {
                   width: double.infinity,
                   decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
-                      color: Color(0xFFCED6E0),
+                      color: Color(0xFFDCE1EE),
                       border: Border.all(width: 2, color: Colors.black)
                   ),
                   margin: EdgeInsets.only(left: 30, right: 30),
