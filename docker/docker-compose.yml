@@ -1,0 +1,6 @@
+version: '3'
+services:
+  myservice:
+    image:  projeto/integrador
+    volumes:
+      - /Users/gustavo/facul/PI5/projetoIntegrador5/docker/app
