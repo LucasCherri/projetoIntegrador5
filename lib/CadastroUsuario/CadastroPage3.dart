@@ -14,6 +14,9 @@ import 'package:intl/intl.dart';
 import 'package:flutter_multi_formatter/flutter_multi_formatter.dart';
 import 'package:mongo_dart/mongo_dart.dart' as mongo;
 
+import '../flutter_flow/flutter_flow_theme.dart';
+import '../flutter_flow/flutter_flow_widgets.dart';
+
 class CadastroPage3 extends StatefulWidget {
 
   String nome, email, senha;
@@ -34,9 +37,12 @@ String token = generateToken();
 
 class _CadastroPage3State extends State<CadastroPage3>{
 
+  String buttonText = 'Concluir Cadastro';
+  bool isLoading = false;
+
   final _formKey = GlobalKey<FormState>();
   User user = User("", "", "", "", "", "", "");
-  String url = "http://172.16.192.95:8080/register";
+  String url = "http://192.168.15.165:8080/register";
 
   Future save() async {
 
@@ -154,6 +160,21 @@ class _CadastroPage3State extends State<CadastroPage3>{
       user.dataNasc = '';
       CustomSnackBarError(context, const Text('Você precisa ter mais de 18 anos'));
     }
+  }
+
+  void carregando() async {
+    setState(() {
+      isLoading = true;
+      buttonText = 'Carregando...';
+    });
+
+    // Código para obter dados do banco de dados aqui
+    await Future.delayed(Duration(seconds: 2)); // Simulação de tempo de espera
+
+    setState(() {
+      isLoading = false;
+      buttonText = 'Concluir Cadastro';
+    });
   }
 
   @override
@@ -305,10 +326,9 @@ class _CadastroPage3State extends State<CadastroPage3>{
                           },
                         ),
                       ),
-                      SizedBox(height: 30),
-                      Container(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
+                      Padding(
+                        padding: EdgeInsetsDirectional.fromSTEB(0.0, 40.0, 0.0, 0.0),
+                        child: FFButtonWidget(
                           onPressed: () {
                             String cpf = user.cpf;
                             String cel = user.celular;
@@ -324,17 +344,27 @@ class _CadastroPage3State extends State<CadastroPage3>{
                                   CustomSnackBarError(context, const Text('Número de celular inválido'));
                                 }
                               }
+                              carregando();
                               save();
                             }
                           },
-                          label: Text('Concluir'),
-                          icon: Icon(Icons.check),
-                          style: ElevatedButton.styleFrom(
-                            primary: Color(0xFF003049),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
+                          text: '$buttonText',
+                          options: FFButtonOptions(
+                            width: double.infinity,
+                            height: 61.0,
+                            padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
+                            iconPadding:
+                            EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
+                            color: Color(0xFF003049),
+                            textStyle: FlutterFlowTheme.of(context).titleSmall.override(
+                              fontFamily: 'Poppins',
+                              color: Colors.white,
                             ),
-                            padding: EdgeInsets.symmetric(vertical: 16),
+                            borderSide: BorderSide(
+                              color: Colors.transparent,
+                              width: 1.0,
+                            ),
+                            borderRadius: BorderRadius.circular(8.0),
                           ),
                         ),
                       ),

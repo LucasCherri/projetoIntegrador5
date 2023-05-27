@@ -2,12 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:mongo_dart/mongo_dart.dart' as mongo;
 import '../Settings/db.dart';
 import 'package:geocoding/geocoding.dart';
 import '../flutter_flow/flutter_flow_theme.dart';
 import '../flutter_flow/flutter_flow_widgets.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:mongo_dart/mongo_dart.dart' as mongo;
 
 class MapsPage1 extends StatefulWidget {
   @override
@@ -17,12 +17,11 @@ class MapsPage1 extends StatefulWidget {
 class MapsPage1State extends State<MapsPage1> {
 
   Completer<GoogleMapController> _controller = Completer();
-  final GeocodingPlatform geocodingPlatform = GeocodingPlatform.instance;
   TextEditingController _cityController = TextEditingController();
-
   List<Map<String, dynamic>>? _imoveis = [];
+  Set<Marker> _markers = {};
 
-  late Position _currentPosition = Position(
+  Position _currentPosition = Position(
     latitude: -22.922334,
     longitude: -47.064010,
     accuracy: 0.0,
@@ -33,28 +32,20 @@ class MapsPage1State extends State<MapsPage1> {
     timestamp: DateTime.now(),
   );
 
-
-  _getCurrentLocation() async {
-    final position = await Geolocator.getCurrentPosition();
-    setState(() {
-      _currentPosition = position;
-    });
-  }
-
   @override
   void initState() {
     super.initState();
+    _getCurrentLocation();
     _loadImoveis();
-    _getCurrentLocation().then((position) {
-      if (position != null) {
-        setState(() {
-          _currentPosition = position;
-        });
-      } else {
+  }
 
-      }
+  Future<void> _getCurrentLocation() async {
+    Position position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+    setState(() {
+      _currentPosition = position;
     });
-    _controller = Completer();
   }
 
   Future<void> _loadImoveis() async {
@@ -62,18 +53,92 @@ class MapsPage1State extends State<MapsPage1> {
     setState(() {
       _imoveis = imoveis;
     });
+    _addMarkers();
   }
-
-  double zoomVal = 5.0;
 
   Future<List<Map<String, dynamic>>?> getImoveis() async {
     var db = await Db.getConnectionImoveis();
     var col = db.collection('informacoes');
-    final doc = await col.find().toList();
+    final doc = await col.find(mongo.where.eq('status', 'ativo')).toList();
 
     List<Map<String, dynamic>>? data = doc;
 
     return data;
+  }
+
+  Future<Map<String, dynamic>?> _getLatLngFromCep(String cep) async {
+    try {
+      List<Location> locations = await locationFromAddress(cep);
+      if (locations.isNotEmpty) {
+        return {'lat': locations[0].latitude, 'lng': locations[0].longitude};
+      }
+      return null;
+    } catch (e) {
+      print('Erro ao obter localização do CEP: $e');
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> _getLatLngFromCity(String city) async {
+    try {
+      List<Location> locations = await locationFromAddress(city);
+      if (locations.isNotEmpty) {
+        return {'lat': locations[0].latitude, 'lng': locations[0].longitude};
+      }
+      return null;
+    } catch (e) {
+      print('Erro ao obter localização da cidade: $e');
+      return null;
+    }
+  }
+
+  Future<void> _moveToCity(String city) async {
+    LatLng? latLng;
+    Map<String, dynamic>? location = await _getLatLngFromCity(city);
+    if (location != null) {
+      double lat = location['lat'];
+      double lng = location['lng'];
+      latLng = LatLng(lat, lng);
+    }
+
+    if (latLng != null) {
+      final GoogleMapController controller = await _controller.future;
+      controller.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(target: latLng, zoom: 12),
+        ),
+      );
+    } else {
+      print('Não foi possível obter a localização da cidade.');
+    }
+  }
+
+  Future<void> _addMarkers() async {
+    if (_imoveis == null || _imoveis!.isEmpty) return;
+
+    for (var imovel in _imoveis!) {
+      String cep = imovel['endereco']['cep'];
+      Map<String, dynamic>? location = await _getLatLngFromCep(cep);
+      if (location != null) {
+        double lat = location['lat'];
+        double lng = location['lng'];
+        _markers.add(
+          Marker(
+            markerId: MarkerId(cep),
+            position: LatLng(lat, lng),
+            infoWindow: InfoWindow(
+              title: '${imovel['tipo']['tipo']} para ${imovel['valores']['negocio']}',
+              snippet:
+              '${imovel['endereco']['rua']}, ${imovel['endereco']['bairro']}, ${imovel['endereco']['numero']}\nValor: R\$ ${imovel['valores']['valor']}',
+                onTap: (){
+                  exibirDetalhes(imovel);
+                }
+            ),
+          ),
+        );
+      }
+    }
+    setState(() {});
   }
 
   @override
@@ -90,19 +155,14 @@ class MapsPage1State extends State<MapsPage1> {
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        color: Color(0xFFCED6E0),
-                        border: Border.all(width: 1, color: Colors.black)
+                      borderRadius: BorderRadius.circular(10),
+                      color: Color(0xFFCED6E0),
+                      border: Border.all(width: 1, color: Colors.black),
                     ),
                     child: TextFormField(
                       controller: _cityController,
-                      onFieldSubmitted: (value) async{
+                      onFieldSubmitted: (value) {
                         _moveToCity(_cityController.text);
-                      },
-                      validator: (value) {
-                        if (value!.isEmpty) {
-                          return null;
-                        }
                       },
                       decoration: InputDecoration(
                         hintText: 'Digite a cidade...',
@@ -129,96 +189,17 @@ class MapsPage1State extends State<MapsPage1> {
   }
 
   Widget _buildGoogleMap(BuildContext context) {
-    Set<Marker> markers = Set();
-    _addMarkers(markers);
-
-    return FutureBuilder<void>(
-      future: _addMarkers(markers),
-      builder: (BuildContext context, AsyncSnapshot<void> snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
-        } else if (snapshot.connectionState == ConnectionState.done) {
-          return GoogleMap(
-            mapType: MapType.normal,
-            initialCameraPosition: CameraPosition(
-                target: LatLng(_currentPosition.latitude, _currentPosition.longitude), zoom: 12),
-            onMapCreated: (GoogleMapController controller) {
-              if (!_controller.isCompleted) {
-                _controller.complete(controller);
-              }
-            },
-            markers: markers,
-          );
-        } else {
-          return Center(child: Text('Erro ao carregar o mapa'),);
-        }
+    return GoogleMap(
+      mapType: MapType.normal,
+      initialCameraPosition: CameraPosition(
+        target: LatLng(_currentPosition.latitude, _currentPosition.longitude),
+        zoom: 12,
+      ),
+      onMapCreated: (GoogleMapController controller) {
+        _controller.complete(controller);
       },
+      markers: _markers,
     );
-  }
-
-  Future<void> _addMarkers(Set<Marker> markers) async {
-    List<String> ceps = [];
-    for (var imovel in _imoveis!) {
-      String cep = imovel['endereco']['cep'];
-      ceps.add(cep);
-    }
-
-    for (var i = 0; i < ceps.length; i++) {
-      Map<String, dynamic>? location = await _getLatLngFromCep(ceps[i]);
-      if (location != null) {
-        double lat = location['lat'];
-        double lng = location['lng'];
-        markers.add(
-          Marker(
-            visible: true,
-            markerId: MarkerId(ceps[i]),
-            position: LatLng(lat, lng),
-            infoWindow: InfoWindow(
-              title: '${_imoveis![i]['tipo']['tipo']} para ${_imoveis![i]['valores']['negocio']}',
-              snippet: '${_imoveis![i]['endereco']['rua']}, ${_imoveis![i]['endereco']['bairro']}, ${_imoveis![i]['endereco']['numero']}\nValor: R\$ ${_imoveis![i]['valores']['valor']}',
-              onTap: (){
-                exibirDetalhes(_imoveis![i]);
-              }
-            ),
-          ),
-        );
-      }
-    }
-  }
-
-  Future<Map<String, dynamic>?> _getLatLngFromCep(String cep) async {
-    final GeocodingPlatform geocodingPlatform = GeocodingPlatform.instance;
-    final placemarks = await geocodingPlatform.locationFromAddress(cep);
-    final latitude = placemarks.first.latitude;
-    final longitude = placemarks.first.longitude;
-    return {'lat': latitude, 'lng': longitude};
-  }
-
-  Future<LatLng?> _getLatLngFromCity(String city) async {
-    try {
-      List<Location> locations = await locationFromAddress(city);
-      if (locations.isNotEmpty) {
-        return LatLng(locations[0].latitude, locations[0].longitude);
-      }
-      return null;
-    } catch (e) {
-      print('Erro ao obter localização da cidade: $e');
-      return null;
-    }
-  }
-
-  Future<void> _moveToCity(String city) async {
-    LatLng? latLng = await _getLatLngFromCity(_cityController.text);
-    if (latLng != null) {
-      final controller = await _controller.future;
-      var lat = latLng.latitude;
-      var long = latLng.longitude;
-      controller.animateCamera(
-        CameraUpdate.newCameraPosition(CameraPosition(target: LatLng(lat, long), zoom: 12, tilt: 50.0, bearing: 45.0)),
-      );
-    } else {
-      print('Não foi possível obter a localização da cidade.');
-    }
   }
 
   void exibirDetalhes(Map<String, dynamic> imovel) {
@@ -439,6 +420,7 @@ class MapsPage1State extends State<MapsPage1> {
                         padding: EdgeInsetsDirectional.fromSTEB(10, 20, 10, 0),
                         child: FFButtonWidget(
                           onPressed: () async{
+
                           },
                           text: 'Agendar Visita',
                           options: FFButtonOptions(

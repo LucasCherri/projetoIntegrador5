@@ -400,17 +400,17 @@ class _CadastroImovelPage4State
                       if(switchQuartos == false){
                         numeroQuartos = 0.toString();
                       }else{
-                        numeroQuartos = _model.sliderValue1.toString();
+                        numeroQuartos = _model.sliderValue1?.toStringAsFixed(0);
                       }
                       if(switchBanheiros == false){
                         numeroBanheiros = 0.toString();
                       }else{
-                        numeroBanheiros = _model.sliderValue2.toString();
+                        numeroBanheiros = _model.sliderValue2?.toStringAsFixed(0);
                       }
                       if(switchVagas == false){
                         numeroVagas = 0.toString();
                       }else{
-                        numeroVagas = _model.sliderValue3.toString();
+                        numeroVagas = _model.sliderValue3?.toStringAsFixed(0);
                       }
                       if(switchPets == false){
                         switchPets == false;

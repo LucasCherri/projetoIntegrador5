@@ -3,12 +3,17 @@ import 'package:flutter/material.dart';
 import 'package:front_projeto_quintoandar/RedefinirSenhaPage.dart';
 import 'package:front_projeto_quintoandar/Settings/Navbar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:zego_zimkit/services/services.dart';
 import 'Settings/Snackbar.dart';
 import 'Settings/User.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:mongo_dart/mongo_dart.dart' as mongo;
 import 'package:google_sign_in/google_sign_in.dart';
+
+import 'Settings/db.dart';
+import 'flutter_flow/flutter_flow_theme.dart';
+import 'flutter_flow/flutter_flow_widgets.dart';
 
 class LoginPage extends StatefulWidget {
   @override
@@ -17,33 +22,16 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
 
-  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email']);
-
-  Future<void> _handleSignIn() async {
-    try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        print('Usuário não autenticado');
-        return;
-      }
-
-      final GoogleSignInAuthentication? googleAuth = await googleUser.authentication;
-      // Aqui você pode salvar as informações do usuário no MongoDB
-      print(googleUser);
-    } catch (error) {
-      print(error);
-    }
-  }
-
+  String buttonText = 'Entrar';
+  bool isLoading = false;
 
   final _formKey = GlobalKey<FormState>();
   User user = User("", "", "", "", "", "", "");
-  String url = "http://172.16.192.95:8080/login";
+  String url = "http://192.168.15.165:8080/login";
 
   Future login() async {
 
-    var db = await mongo.Db.create("mongodb+srv://lucascherri:lucascherri@cluster0.6udflvk.mongodb.net/authentication?retryWrites=true&w=majority");
-    await db.open();
+    var db = await Db.getConnection();
     var col = db.collection('user');
 
     var bytes = utf8.encode(user.senha);
@@ -60,19 +48,39 @@ class _LoginPageState extends State<LoginPage> {
     var email = user.email;
     var doc = await col.findOne(mongo.where.eq('email', email));
     var confirmado = doc!['confirmado'];
+    var name = doc['nome'];
 
     if(res.body.length < 1000){
       if(confirmado != null){
         SharedPreferences prefs = await SharedPreferences.getInstance();
         prefs.setString('email', email);
-
+        await ZIMKit().connectUser(id: email, name: name);
         Navigator.push(context,MaterialPageRoute(builder: (context) => new navbar(user: doc)));
       }else{
-        CustomSnackBarError(context, const Text('Cadastro não confirmado'));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Cadastro não confirmado')),
+        );
       }
-    }else if(res.body.length > 1000){
-      CustomSnackBarError(context, const Text('Email ou senha incorretos'));
+    }else{
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Credenciais inválidas')),
+      );
     }
+  }
+
+  void carregando() async {
+    setState(() {
+      isLoading = true;
+      buttonText = 'Carregando...';
+    });
+
+    // Código para obter dados do banco de dados aqui
+    await Future.delayed(Duration(seconds: 2)); // Simulação de tempo de espera
+
+    setState(() {
+      isLoading = false;
+      buttonText = 'Entrar';
+    });
   }
 
   @override
@@ -199,29 +207,40 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ],
                 ),
-                SizedBox(height: 30),
-                Container(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
+                Padding(
+                  padding: EdgeInsetsDirectional.fromSTEB(0.0, 40.0, 0.0, 0.0),
+                  child: FFButtonWidget(
                     onPressed: () async{
                       String email = user.email;
                       String senha = user.senha;
                       if(_formKey.currentState!.validate()){
                         if(email.isEmpty || senha.isEmpty){
-                          CustomSnackBarError(context, const Text('Preecha todos os campos'));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Preencha todos os campos')),
+                          );
                         }else{
+                          carregando();
                           login();
                         }
                       }
                     },
-                    label: Text('Entrar'),
-                    icon: Icon(Icons.login),
-                    style: ElevatedButton.styleFrom(
-                      primary: Color(0xFF003049),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                    text: '$buttonText',
+                    options: FFButtonOptions(
+                      width: double.infinity,
+                      height: 61.0,
+                      padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
+                      iconPadding:
+                      EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
+                      color: Color(0xFF003049),
+                      textStyle: FlutterFlowTheme.of(context).titleSmall.override(
+                        fontFamily: 'Poppins',
+                        color: Colors.white,
                       ),
-                      padding: EdgeInsets.symmetric(vertical: 16),
+                      borderSide: BorderSide(
+                        color: Colors.transparent,
+                        width: 1.0,
+                      ),
+                      borderRadius: BorderRadius.circular(8.0),
                     ),
                   ),
                 ),
@@ -254,7 +273,6 @@ class _LoginPageState extends State<LoginPage> {
                       iconSize: 45,
                       icon: Icon(Icons.g_mobiledata),
                       onPressed: () {
-                        _handleSignIn();
                       },
                     ),
                   ],

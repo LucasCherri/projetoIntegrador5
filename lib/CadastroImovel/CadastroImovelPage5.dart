@@ -472,6 +472,7 @@ class _CadastroImovelPage5State extends State<CadastroImovelPage5> {
                             'negocio': valores.negocio
                           },
                           'imagens': imagensBase64,
+                          'status' : 'ativo'
                         });
                         dialog();
                       }

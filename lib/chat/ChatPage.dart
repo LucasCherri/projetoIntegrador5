@@ -1,13 +1,9 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:zego_zimkit/services/services.dart';
-import 'ChatScreen.dart';
+import 'package:zego_zimkit/zego_zimkit.dart';
 
 class ChatPage extends StatefulWidget {
-
-  Map<String, dynamic>? user;
-
-  ChatPage({Key? key, required this.user}) : super(key: key);
-
   @override
   _ChatPageState createState() => _ChatPageState();
 }
@@ -16,77 +12,39 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    var doc = widget.user;
-    var email = doc!['email'];
-    var name = doc['nome'];
-
     return Scaffold(
-      body: SingleChildScrollView(
-        padding: EdgeInsets.only(top: 40, right: 30, left: 30),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                Text("Suas Conversas", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            SizedBox(height: 30,),
-            Container(
-              decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  color: Color(0xFFDCE1EE),
-                  border: Border.all(width: 1, color: Colors.black)
+      appBar: AppBar(
+        backgroundColor: Color(0xFF003049),
+        title: Text("Mensagens"),
+        actions: [
+          PopupMenuButton(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15)
               ),
-              child: TextFormField(
-                readOnly: true,
-                decoration: InputDecoration(
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 16),
-                    hintText: email
-                ),
-              ),
-            ),
-            SizedBox(height: 20,),
-            Container(
-              decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  color: Color(0xFFDCE1EE),
-                  border: Border.all(width: 1, color: Colors.black)
-              ),
-              child: TextFormField(
-                readOnly: true,
-                decoration: InputDecoration(
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 16),
-                  hintText: name
-                ),
-              ),
-            ),
-            SizedBox(height: 30,),
-            Container(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () async{
-                  await ZIMKit().connectUser(id: email, name: name);
-                  Navigator.push(context,MaterialPageRoute(builder: (context) => new ChatScreen()));
-                },
-                label: Text('Entrar'),
-                icon: Icon(Icons.login),
-                style: ElevatedButton.styleFrom(
-                  primary: Color(0xFF003049),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+              position: PopupMenuPosition.under,
+              icon: Icon(CupertinoIcons.add_circled),
+              itemBuilder: (context){
+                return [PopupMenuItem(
+                  value: "Nova Conversa",
+                  child: ListTile(
+                    leading: Icon(CupertinoIcons.chat_bubble_2_fill,
+                        color: Colors.black),
+                    title: Text("Nova Conversa", maxLines: 1,),
                   ),
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                ),
-              ),
-            ),
-          ],
-        ),
+                  onTap: (){
+                    ZIMKit().showDefaultNewPeerChatDialog(context);
+                  },
+                )];
+              })
+        ],
+      ),
+      body: ZIMKitConversationListView(
+        onPressed: (context, conversation, defaultAction){
+          Navigator.push(context, MaterialPageRoute(builder: (context){
+            return ZIMKitMessageListPage(conversationID: conversation.id,
+              conversationType: conversation.type,);
+          }));
+        },
       ),
     );
   }

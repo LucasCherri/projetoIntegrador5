@@ -149,10 +149,14 @@ class _RedefinirSenhaState extends State<RedefinirSenha> {
 
                     var doc = await col.findOne(mongo.where.eq('email', email));
                     if(email.isEmpty || senhaNova.isEmpty){
-                      CustomSnackBarError(context, const Text('Preencha todos os campos'));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Preencha todos os campos')),
+                      );
                     }else{
                       if(doc == null){
-                        CustomSnackBarError(context, const Text('Email inválido'));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Email inválido')),
+                        );
                       }else{
                         emailRedefinicao();
                         showDialog(
@@ -223,14 +227,18 @@ class _RedefinirSenhaState extends State<RedefinirSenha> {
                                       child: ElevatedButton.icon(
                                         onPressed: (){
                                           if(controllerCodigoVerificacao.text.isEmpty){
-                                            CustomSnackBarError(context, const Text('Preecha o código de verificação'));
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(content: Text('Preencha o código de verificação')),
+                                            );
                                           }else{
                                             if(controllerCodigoVerificacao.text == codigo){
                                               col.updateOne(mongo.where.eq('email', email), mongo.modify.set('senha', senhaHash));
                                               CustomSnackBarSucess(context, const Text('Senha redefinida com sucesso'));
                                               Navigator.pop(context);
                                             }else{
-                                              CustomSnackBarError(context, const Text('Código de verificação inválido'));
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(content: Text('Código de verificação inválido')),
+                                              );
                                             }
                                           }
                                         },

@@ -2,7 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:front_projeto_quintoandar/maps/MapsPage1.dart';
 import 'package:front_projeto_quintoandar/Settings/db.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:table_calendar/table_calendar.dart';
 import 'Settings/Snackbar.dart';
 import 'flutter_flow/flutter_flow_theme.dart';
 import 'flutter_flow/flutter_flow_widgets.dart';
@@ -41,7 +43,7 @@ class _HomePageState extends State<HomePage> {
   Future<List<Map<String, dynamic>>> getImoveis(int page, int pageSize) async {
     var db = await Db.getConnectionImoveis();
     var col = db.collection('informacoes');
-    final doc = await col.find().skip((page - 1) * pageSize).take(pageSize).toList();
+    final doc = await col.find(mongo.where.eq('status', 'ativo')).skip((page - 1) * pageSize).take(pageSize).toList();
 
     List<Map<String, dynamic>> data = doc;
 
@@ -83,32 +85,20 @@ class _HomePageState extends State<HomePage> {
 
     final prefs = await SharedPreferences.getInstance();
     final existingFavorites = prefs.getStringList('$id') ?? [];
-    final existingIds = existingFavorites.map((favorito) => jsonDecode(favorito)['_id'].toString()).toSet();
 
-    final jsonList = _favoritos
-        .where((favorito) => !existingIds.contains(favorito['_id'].toString()))
-        .map<String>((favorito) => jsonEncode(favorito))
-        .toList();
+    final jsonList = _favoritos.map<String>((favorito) => jsonEncode(favorito)).toList();
 
-    final mergedList = [...existingFavorites, ...jsonList];
+    final mergedList = jsonList.toSet().union(existingFavorites.toSet()).toList();
     await prefs.setStringList('$id', mergedList);
   }
 
   void toggleFavorite(Map<String, dynamic> imovel) async {
     final key = imovel['_id'].toString();
 
-    bool isFavorited = false;
-    int index = 0;
-    for (int i = 0; i < _favoritos.length; i++) {
-      if (_favoritos[i]['_id'].toString() == key) {
-        isFavorited = true;
-        index = i;
-        break;
-      }
-    }
+    final isFavorited = _favoritos.any((favorito) => favorito['_id'].toString() == key);
     if (isFavorited) {
       setState(() {
-        _favoritos.removeAt(index);
+        _favoritos.removeWhere((favorito) => favorito['_id'].toString() == key);
         _isFavorito = false;
       });
     } else {
@@ -429,161 +419,212 @@ class _HomePageState extends State<HomePage> {
                         padding: EdgeInsetsDirectional.fromSTEB(10, 20, 10, 0),
                         child: FFButtonWidget(
                           onPressed: () async{
-                            DateTime? _dataHora;
+                            DateTime? selectedDate;
+                            TimeOfDay? selectedTime;
+                            int? selectedTimeIndex;
+
+                            bool isTimeSlotBooked(String time) {
+                              return false;
+                            }
+
+                            List<String> availableTimes = ['08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
+
                             showDialog(
                               context: context,
                               builder: (BuildContext context) {
-                                return StatefulBuilder(
-                                  builder: (BuildContext context, StateSetter setState) {
-                                    return Scaffold(
-                                      body: Container(
-                                          margin: EdgeInsets.only(top: 30, left: 20, right: 20),
+                                return Dialog(
+                                  insetPadding: EdgeInsets.zero,
+                                  child: StatefulBuilder(
+                                    builder: (BuildContext context, StateSetter setState) {
+                                      return SingleChildScrollView(
+                                        child: Container(
+                                          margin: EdgeInsets.only(left: 20, right: 20, top: 30),
+                                          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height),
                                           child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.stretch,
                                             children: [
-                                              Row(
-                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                children: [
-                                                  Text(
-                                                    "Visita ao imóvel",
-                                                    style: TextStyle(
-                                                      fontSize: 20,
-                                                      color: Colors.black,
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                  IconButton(
-                                                    onPressed: () {
-                                                      Navigator.of(context).pop();
-                                                    },
-                                                    icon: Icon(
-                                                      Icons.close,
-                                                      color: Colors.black,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              SizedBox(height: 60),
-                                              Padding(
-                                                  padding: EdgeInsets.only(right: 10),
-                                                child: Text("Selecione a data e hora desejada:",style: TextStyle(
-                                                    fontSize: 20
-                                                )),
-                                              ),
-                                              SizedBox(height: 15),
-                                              Row(
-                                                children: [
-                                                  Expanded(
-                                                    child: ElevatedButton(
-                                                      onPressed: () async {
-                                                        final selectedDate = await showDatePicker(
-                                                          context: context,
-                                                          initialDate: DateTime.now(),
-                                                          firstDate: DateTime.now(),
-                                                          lastDate: DateTime.now().add(Duration(days: 365)),
-                                                        );
-                                                        if (selectedDate != null) {
-                                                          final selectedTime = await showTimePicker(
-                                                            context: context,
-                                                            initialTime: TimeOfDay.now(),
-                                                          );
-                                                          if (selectedTime != null) {
-                                                            setState(() {
-                                                              _dataHora = DateTime(
-                                                                selectedDate.year,
-                                                                selectedDate.month,
-                                                                selectedDate.day,
-                                                                selectedTime.hour,
-                                                                selectedTime.minute,
-                                                              );
-                                                            });
-                                                          }
-                                                        }
-                                                      },
-                                                      child: Text('Selecionar'),
-                                                      style: ElevatedButton.styleFrom(
-                                                        primary: Color(0xFF003049),
-                                                        shape: RoundedRectangleBorder(
-                                                          borderRadius: BorderRadius.circular(10),
-                                                        ),
-                                                        padding: EdgeInsets.symmetric(vertical: 16),
+                                              Container(
+                                                child: Row(
+                                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                  children: [
+                                                    Text(
+                                                      "Agendamento",
+                                                      style: TextStyle(
+                                                        fontSize: 25,
+                                                        color: Colors.black,
+                                                        fontWeight: FontWeight.bold,
                                                       ),
                                                     ),
-                                                  ),
-                                                ],
-                                              ),
-                                              SizedBox(
-                                                height: 40,
-                                              ),
-                                              Text(
-                                                _dataHora != null
-                                                    ? 'Data: ${_dataHora!.day}/${_dataHora!.month}/${_dataHora!.year} Hora: ${_dataHora!.hour}:${_dataHora!.minute}'
-                                                    : '',
-                                                style: TextStyle(
-                                                  fontSize: 20
-                                                ),
-                                              ),
-                                              SizedBox(
-                                                height: 100,
-                                              ),
-                                              Center(
-                                                child: Text(
-                                                    "RESSALTAMOS: O proprietário do imóvel que fica responsável por aceitar ou recusar o pedido.",
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                              ),
-                                              SizedBox(
-                                                height: 15,
-                                              ),
-                                              Row(
-                                                children: [
-                                                  Expanded(
-                                                    child: ElevatedButton(
-                                                      onPressed: () async {
-                                                        var db = await Db.getConnectionImoveis();
-                                                        var col = db.collection('informacoes');
-
-                                                        var userSolicitante = widget.user;
-                                                        var userSol = userSolicitante!['email'];
-
-                                                        var idProprietario = imovel['_userId'];
-                                                        var emailSolicitante = userSol;
-
-                                                        var imovelId = imovel['_id'];
-                                                        var idImovel = imovelId;
-
-                                                        String data = '${_dataHora!.day}/${_dataHora!.month}/${_dataHora!.year}';
-                                                        String horario = '${_dataHora!.hour}:${_dataHora!.minute}';
-
-                                                        col.updateOne(mongo.where.eq('_id', idImovel), mongo.modify.push('visitasPedidas', {
-                                                          'idProprietario' : idProprietario,
-                                                          'emailSolicitante' : emailSolicitante,
-                                                          'idImovel': idImovel,
-                                                          'data' : data,
-                                                          'horario' : horario
-                                                        }));
-
-                                                        ScaffoldMessenger.of(context).showSnackBar(
-                                                          SnackBar(content: Text('Pedido de visita enviado')),
-                                                        );
+                                                    IconButton(
+                                                      icon: Icon(Icons.close, size: 30),
+                                                      onPressed: () {
                                                         Navigator.of(context).pop();
                                                       },
-                                                      child: Text('Enviar'),
-                                                      style: ElevatedButton.styleFrom(
-                                                        primary: Color(0xFF003049),
-                                                        shape: RoundedRectangleBorder(
-                                                          borderRadius: BorderRadius.circular(10),
-                                                        ),
-                                                        padding: EdgeInsets.symmetric(vertical: 16),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              SizedBox(
+                                                height: 20,
+                                              ),
+                                              Expanded(
+                                                child: Container(
+                                                  height: 200,
+                                                  child: TableCalendar(
+                                                    firstDay: DateTime.utc(2023, 1, 1),
+                                                    lastDay: DateTime.utc(2023, 12, 31),
+                                                    focusedDay: DateTime.now(),
+                                                    headerStyle: HeaderStyle(formatButtonVisible: false, titleCentered: true),
+                                                    selectedDayPredicate: (day) => isSameDay(day, selectedDate),
+                                                    onDaySelected: (selectedDay, focusedDay) {
+                                                      setState(() {
+                                                        selectedDate = selectedDay;
+                                                      });
+                                                    },
+                                                    calendarStyle: CalendarStyle(
+                                                      selectedDecoration: BoxDecoration(
+                                                        color: Color(0xFF003049),
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                      selectedTextStyle: TextStyle(color: Colors.white),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              SizedBox(
+                                                height: 20,
+                                              ),
+                                              Container(
+                                                child: selectedDate != null
+                                                    ? Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    SizedBox(height: 8),
+                                                    SingleChildScrollView(
+                                                      scrollDirection: Axis.horizontal,
+                                                      child: Row(
+                                                        children: availableTimes.asMap().entries.map((entry) {
+                                                          final index = entry.key;
+                                                          final time = entry.value;
+                                                          final isAvailable = !isTimeSlotBooked(time);
+                                                          final isSelected = index == selectedTimeIndex;
+
+                                                          return Padding(
+                                                            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                                            child: ElevatedButton(
+                                                              onPressed: isAvailable
+                                                                  ? () {
+                                                                setState(() {
+                                                                  selectedTimeIndex = index;
+                                                                  selectedTime = TimeOfDay(hour: int.parse(time.split(':')[0]), minute: 0);
+                                                                });
+                                                              }
+                                                                  : null,
+                                                              style: ButtonStyle(
+                                                                backgroundColor: MaterialStateProperty.resolveWith<Color>((Set<MaterialState> states) {
+                                                                  if (states.contains(MaterialState.disabled)) {
+                                                                    return Colors.red;
+                                                                  }
+                                                                  if (isSelected) {
+                                                                    return Colors.green;
+                                                                  }
+                                                                  return Color(0xFF003049);
+                                                                }),
+                                                                shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                                                                  RoundedRectangleBorder(
+                                                                    borderRadius: BorderRadius.circular(10),
+                                                                  ),
+                                                                ),
+                                                                minimumSize: MaterialStateProperty.all<Size>(
+                                                                  Size(100, 40),
+                                                                ),
+                                                                padding: MaterialStateProperty.all<EdgeInsets>(
+                                                                  EdgeInsets.symmetric(vertical: 8),
+                                                                ),
+                                                              ),
+                                                              child: Text(
+                                                                time,
+                                                                style: TextStyle(
+                                                                  color: isAvailable ? Colors.white : Colors.white.withOpacity(0.6),
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          );
+                                                        }).toList(),
                                                       ),
                                                     ),
-                                                  )
-                                                ],
-                                              )
+                                                  ],
+                                                )
+                                                    : SizedBox(),
+                                              ),
+                                              SizedBox(
+                                                height: 20,
+                                              ),
+                                              Container(
+                                                height: 60,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white,
+                                                ),
+                                                padding: EdgeInsets.symmetric(horizontal: 20),
+                                                child: selectedDate != null && selectedTime != null
+                                                    ? Center(
+                                                  child: Text(
+                                                    '${DateFormat('dd/MM/yyyy').format(selectedDate!)} ${selectedTime!.format(context)}',
+                                                    style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                                                  ),
+                                                )
+                                                    : SizedBox(),
+                                              ),
+                                              ElevatedButton(
+                                                onPressed: () async{
+
+                                                  var db = await Db.getConnectionImoveis();
+                                                  var col = db.collection('informacoes');
+
+                                                  var userSolicitante = widget.user;
+                                                  var userSol = userSolicitante!['email'];
+
+                                                  var idProprietario = imovel['_userId'];
+                                                  var emailSolicitante = userSol;
+
+                                                  var imovelId = imovel['_id'];
+                                                  var idImovel = imovelId;
+
+                                                  if (selectedDate != null && selectedTime != null) {
+
+                                                    var data = '${DateFormat('dd/MM/yyyy').format(selectedDate!)}';
+                                                    var horario = '${selectedTime!.format(context)}';
+
+                                                    col.updateOne(mongo.where.eq('_id', idImovel), mongo.modify.push('visitasPedidas', {
+                                                      'idProprietario' : idProprietario,
+                                                      'emailSolicitante' : emailSolicitante,
+                                                      'idImovel': idImovel,
+                                                      'data' : data,
+                                                      'horario' : horario
+                                                    }));
+
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      SnackBar(content: Text('Pedido enviado')),
+                                                    );
+                                                    Navigator.of(context).pop();
+
+                                                  } else {
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      SnackBar(content: Text('Selecione uma data e horário')),
+                                                    );
+                                                  }
+                                                },
+                                                style: ButtonStyle(
+                                                  backgroundColor: MaterialStateProperty.all<Color>(Color(0xFF003049)),
+                                                ),
+                                                child: Text('Enviar'),
+                                              ),
                                             ],
                                           ),
                                         ),
-                                    );
-                                  },
+                                      );
+                                    },
+                                  ),
                                 );
                               },
                             );
@@ -605,6 +646,20 @@ class _HomePageState extends State<HomePage> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
+                      ),
+                      SizedBox(height: 16),
+                      Center(
+                        child: InkWell(
+                          child: Text("Quero fazer uma proposta",
+                          style: TextStyle(
+                            decoration: TextDecoration.underline,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue
+                          )),
+                          onTap: (){
+
+                          },
+                        )
                       ),
                       SizedBox(height: 16),
                     ],

@@ -44,14 +44,13 @@ class _SplashState extends State<Splash> with TickerProviderStateMixin{
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => NetErrorPage()),);
     }else{
       if (email != null) {
-        // Usuário já está logado, navegue para a tela do dashboard
         var db = await Db.getConnection();
         var col = db.collection('user');
         var doc = await col.findOne(mongo.where.eq('email', email));
-
+        var name = doc!['nome'];
+        await ZIMKit().connectUser(id: email, name: name);
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => navbar(user: doc)),);
       } else {
-        // Usuário não está logado, navegue para a tela de login
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => firstpage()),

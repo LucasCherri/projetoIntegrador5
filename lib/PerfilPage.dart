@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'package:front_projeto_quintoandar/CadastroImovel/CadastroImovelPage1.dart';
 import 'package:front_projeto_quintoandar/SuaContaPage.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:table_calendar/table_calendar.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'FirstPage.dart';
-import 'Settings/Snackbar.dart';
 import 'Settings/db.dart';
 import 'flutter_flow/flutter_flow_widgets.dart';
 import 'package:mongo_dart/mongo_dart.dart' as mongo;
@@ -29,6 +30,7 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
   List<Map<String, dynamic>> _visitasAceitas = [];
   List<Map<String, dynamic>> _visitasAceitasSolicitante = [];
   List<Map<String, dynamic>> _notificacoes = [];
+  bool hasNotifications = false;
 
   late TabController _tabController;
 
@@ -36,6 +38,7 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    getNotificacoes();
   }
 
   Future<List<Map<String, dynamic>>> getImoveis() async {
@@ -114,8 +117,120 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
     List<Map<String, dynamic>> data = await doc;
 
     _notificacoes = data;
+    setState((){
+      hasNotifications = _notificacoes.isNotEmpty;
+    });
 
     return data;
+  }
+
+  Future<void> aceitarVisita(int propriedadeIndex, int visitaIndex) async {
+    var propriedade = _visitasPedidas[propriedadeIndex];
+    var visita = propriedade['visitasPedidas'][visitaIndex];
+
+    var db = await Db.getConnectionImoveis();
+    var col = db.collection('informacoes');
+
+    var db2 = await Db.getConnection();
+    var col2 = db2.collection('notificacoes');
+
+    var id = propriedade['_id'];
+
+    await col.updateOne(
+      {'_id': id},
+      {'\$pull': {'visitasPedidas': {'_id': visita['_id']}}},
+    );
+
+    col.updateOne(mongo.where.eq('_id', id), mongo.modify.push('visitasAceitas', {
+      'idProprietario': visita['idProprietario'],
+      'emailSolicitante': visita['emailSolicitante'],
+      'idImovel': visita['idImovel'],
+      'data': visita['data'],
+      'horario': visita['horario']
+    }));
+
+    await col2.insertOne({
+      'idProprietario': visita['idProprietario'],
+      'emailSolicitante': visita['emailSolicitante'],
+      'idImovel': visita['idImovel'],
+      'data': visita['data'],
+      'horario': visita['horario'],
+      'status': 'Aceito'
+    });
+
+    setState(() {
+      _visitasPedidas[propriedadeIndex]['visitasPedidas'].removeAt(visitaIndex);
+      if (_visitasPedidas[propriedadeIndex]['visitasPedidas'].isEmpty) {
+        _visitasPedidas.removeAt(propriedadeIndex);
+      }
+    });
+  }
+
+  Future<void> recusarVisita(int propriedadeIndex, int visitaIndex) async {
+    var propriedade = _visitasPedidas[propriedadeIndex];
+    var visita = propriedade['visitasPedidas'][visitaIndex];
+
+    var db = await Db.getConnectionImoveis();
+    var col = db.collection('informacoes');
+
+    var db2 = await Db.getConnection();
+    var col2 = db2.collection('notificacoes');
+
+    var id = propriedade['_id'];
+
+    await col.updateOne(
+      {'_id': id},
+      {'\$pull': {'visitasPedidas': {'_id': visita['_id']}}},
+    );
+
+    await col2.insertOne({
+      'idProprietario': visita['idProprietario'],
+      'emailSolicitante': visita['emailSolicitante'],
+      'idImovel': visita['idImovel'],
+      'data': visita['data'],
+      'horario': visita['horario'],
+      'status': 'Recusado'
+    });
+
+    setState(() {
+      _visitasPedidas[propriedadeIndex]['visitasPedidas'].removeAt(visitaIndex);
+      if (_visitasPedidas[propriedadeIndex]['visitasPedidas'].isEmpty) {
+        _visitasPedidas.removeAt(propriedadeIndex);
+      }
+    });
+  }
+
+  void toggleStatus(int index) async {
+    var imovel = _imoveis[index];
+    var db = await Db.getConnectionImoveis();
+    var col = db.collection('informacoes');
+
+    if (imovel['status'] == 'ativo') {
+      await col.update(
+        imovel,
+        {'\$set': {'status': 'pausado'}},
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Anúncio pausado')),
+      );
+    } else if (imovel['status'] == 'pausado') {
+      await col.update(
+        imovel,
+        {'\$set': {'status': 'ativo'}},
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Anúncio despausado')),
+      );
+    }
+
+    setState(() {
+      _imoveis = _imoveis.map((item) {
+        if (item['_id'] == imovel['_id']) {
+          item['status'] = imovel['status'] == 'ativo' ? 'pausado' : 'ativo';
+        }
+        return item;
+      }).toList();
+    });
   }
 
   void seusImoveis() {
@@ -123,236 +238,346 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
       context: context,
       builder: (BuildContext context) {
         return StatefulBuilder(
-            builder: (BuildContext context, StateSetter setState){
-              return Scaffold(
-                body: Container(
-                    width: double.infinity,
-                    height: double.infinity,
-                    color: Colors.white,
-                    child: SingleChildScrollView(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.max,
+          builder: (BuildContext context, StateSetter setState) {
+            return Scaffold(
+              body: Container(
+                width: double.infinity,
+                height: double.infinity,
+                color: Colors.white,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.max,
+                    children: [
+                      Container(
+                        margin: EdgeInsets.only(top: 30, left: 30, right: 30),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Container(
-                              margin: EdgeInsets.only(top: 30, left: 30, right: 30),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text("Seus anúncios",
-                                      style: TextStyle(
-                                          fontSize: 25,
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.bold
-                                      )),
-                                  IconButton(
-                                    icon: Icon(Icons.close,
-                                        size: 30),
-                                    onPressed: () {
-                                      Navigator.of(context).pop();
-                                    },
-                                  )
-                                ],
+                            Text(
+                              "Seus anúncios",
+                              style: TextStyle(
+                                fontSize: 25,
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            SizedBox(
-                              height: 20,
-                            ),
-                            Container(
-                                height: 550,
-                                child: SizedBox(
-                                  child: FutureBuilder(
-                                      future: getImoveis(),
-                                      builder: (context, snapshot){
-                                        if (snapshot.connectionState == ConnectionState.waiting) {
-                                          return Center(
-                                              child: Column(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  SizedBox(height: 10,),
-                                                  Text("Carregando seus imóveis...")
-                                                ],
-                                              ));
-                                        }
-                                        if (snapshot.hasError) {
-                                          return Center(child: Text('Error: ${snapshot.error}'));
-                                        }
-                                        if (_imoveis.isEmpty) {
-                                          return Center(child: Text('Nenhum imóvel encontrado.'));
-                                        }
-                                        return ListView.builder(
-                                            itemCount: _imoveis.length,
-                                            scrollDirection: Axis.vertical,
-                                            itemBuilder: (context, index){
-                                              if(_imoveis.isEmpty){
-                                                return Center(child: Text('Nenhum anúncio encontrado.'));
-                                              }else{
-                                                return Align(
-                                                  alignment: AlignmentDirectional(0, 0),
-                                                  child: Padding(
-                                                    padding: EdgeInsetsDirectional.fromSTEB(10, 0, 10, 40),
-                                                    child: InkWell(
-                                                      onTap: (){
-                                                        exibirDetalhes(_imoveis[index]);
-                                                      },
-                                                      child: Container(
-                                                        width: double.infinity,
-                                                        margin: EdgeInsets.only(left: 20, right: 20),
-                                                        height: 320,
-                                                        decoration: BoxDecoration(
-                                                          color: Color(0xffF0F0F0),
-                                                          boxShadow: [
-                                                            BoxShadow(
-                                                              blurRadius: 2,
-                                                              color: Colors.black,
-                                                            )
-                                                          ],
-                                                          borderRadius: BorderRadius.only(bottomLeft: Radius.circular(8), bottomRight: Radius.circular(8)),
-                                                        ),
-                                                        child: Column(
-                                                          mainAxisSize: MainAxisSize.max,
-                                                          children: [
-                                                            Container(
-                                                              width: double.infinity,
-                                                              height: 160,
-                                                              decoration: BoxDecoration(
-                                                                borderRadius: BorderRadius.only(
-                                                                    topRight: Radius.circular(8),
-                                                                    topLeft: Radius.circular(8)
-                                                                ),
-                                                              ),
-                                                              child: ListView.builder(
-                                                                scrollDirection: Axis.horizontal,
-                                                                itemCount: _imoveis[index]['imagens'].length,
-                                                                itemBuilder: (BuildContext context, int imgIndex) {
-                                                                  return Image.memory(
-                                                                    base64Decode(_imoveis[index]['imagens'][imgIndex]),
-                                                                    fit: BoxFit.cover,
-                                                                    width: MediaQuery.of(context).size.width,
-                                                                  );
-                                                                },
-                                                              ),
-                                                            ),
-                                                            Padding(
-                                                              padding:
-                                                              EdgeInsetsDirectional.fromSTEB(20, 20, 20, 0),
-                                                              child: Row(
-                                                                mainAxisSize: MainAxisSize.max,
-                                                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                                                children: [
-                                                                  Expanded(
-                                                                    child: Align(
-                                                                      alignment: AlignmentDirectional(-1, -1),
-                                                                      child: Text(
-                                                                        '${_imoveis[index]['tipo']['tipo']}',
-                                                                        textAlign: TextAlign.start,
-                                                                        style: TextStyle(
-                                                                            color: Colors.black,
-                                                                            fontWeight: FontWeight.bold
-                                                                        ),
-                                                                      ),
-                                                                    ),
-                                                                  ),
-                                                                  Container(
-                                                                      width: 70,
-                                                                      decoration: BoxDecoration(
-                                                                        borderRadius: BorderRadius.circular(2),
-                                                                        color: Color(0xFF003049),
-                                                                      ),
-                                                                      child: Center(
-                                                                          child: Text('${_imoveis[index]['valores']['negocio']}', style: TextStyle(color: Colors.white),)
-                                                                      )
-                                                                  )
-                                                                ],
-                                                              ),
-                                                            ),
-                                                            Padding(
-                                                              padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, 0),
-                                                              child: Row(
-                                                                mainAxisSize: MainAxisSize.max,
-                                                                children: [
-                                                                  Text(
-                                                                    '\nRua ${_imoveis[index]['endereco']['rua']},\n${_imoveis[index]['endereco']['bairro']},'
-                                                                        '\n${_imoveis[index]['endereco']['cidade']} - ${_imoveis[index]['endereco']['uf']}',
-                                                                    style: TextStyle(fontWeight: FontWeight.w500),
-                                                                  ),
-                                                                ],
-                                                              ),
-                                                            ),
-                                                            Padding(
-                                                              padding: EdgeInsetsDirectional.fromSTEB(20, 20, 20, 0),
-                                                              child: Row(
-                                                                mainAxisSize: MainAxisSize.max,
-                                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                                children: [
-                                                                  Text(
-                                                                    'Valor: R\$ ${_imoveis[index]['valores']['valor']}',
-                                                                    style: TextStyle(color: Color(0xFF003049), fontWeight: FontWeight.bold),
-                                                                  ),
-                                                                  InkWell(
-                                                                    child: Icon(
-                                                                      Icons.delete_outline,
-                                                                    ),
-                                                                    onTap: (){
-                                                                      showDialog(
-                                                                        context: context,
-                                                                        builder: (BuildContext context) {
-                                                                          return AlertDialog(
-                                                                            title: Text("Apagar anúncio"),
-                                                                            content: Text("Deseja apagar esse anúncio?"),
-                                                                            actions: [
-                                                                              TextButton(
-                                                                                child: Text("Cancelar"),
-                                                                                onPressed:  () {
-                                                                                  Navigator.pop(context);
-                                                                                },
-                                                                              ),
-                                                                              TextButton(
-                                                                                child: Text("Sim"),
-                                                                                onPressed:  () async{
-                                                                                  var db = await Db.getConnectionImoveis();
-                                                                                  var col = db.collection('informacoes');
-                                                                                  await col.remove(_imoveis[index]);
-                                                                                  setState(() {
-                                                                                    _imoveis.removeAt(index);
-                                                                                  });
-                                                                                  Navigator.pop(context);
-                                                                                  CustomSnackBarSucess(context, const Text('Anúncio apagado com sucesso'));
-                                                                                },
-                                                                              ),
-                                                                            ],
-                                                                          );
-                                                                        },
-                                                                      );
-                                                                    },
-                                                                  )
-                                                                ],
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.close,
+                                size: 30,
+                              ),
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                              },
+                            )
+                          ],
+                        ),
+                      ),
+                      SizedBox(
+                        height: 20,
+                      ),
+                      Container(
+                        height: 550,
+                        child: SizedBox(
+                          child: FutureBuilder(
+                            future: getImoveis(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      SizedBox(
+                                        height: 10,
+                                      ),
+                                      Text("Carregando seus imóveis..."),
+                                    ],
+                                  ),
+                                );
+                              }
+                              if (snapshot.hasError) {
+                                return Center(
+                                  child: Text('Error: ${snapshot.error}'),
+                                );
+                              }
+                              if (_imoveis.isEmpty) {
+                                return Center(
+                                  child: Text('Nenhum imóvel encontrado.'),
+                                );
+                              }
+                              return ListView.builder(
+                                itemCount: _imoveis.length,
+                                scrollDirection: Axis.vertical,
+                                itemBuilder: (context, index) {
+                                  if (_imoveis.isEmpty) {
+                                    return Center(
+                                      child: Text('Nenhum anúncio encontrado.'),
+                                    );
+                                  } else {
+                                    return Align(
+                                      alignment: AlignmentDirectional(0, 0),
+                                      child: Padding(
+                                        padding: EdgeInsetsDirectional.fromSTEB(
+                                            10, 0, 10, 40),
+                                        child: InkWell(
+                                          onTap: () {
+                                            exibirDetalhes(_imoveis[index]);
+                                          },
+                                          child: Container(
+                                            width: double.infinity,
+                                            margin: EdgeInsets.only(
+                                                left: 20, right: 20),
+                                            height: 320,
+                                            decoration: BoxDecoration(
+                                              color: Color(0xffF0F0F0),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  blurRadius: 2,
+                                                  color: Colors.black,
+                                                )
+                                              ],
+                                              borderRadius: BorderRadius.only(
+                                                bottomLeft: Radius.circular(8),
+                                                bottomRight: Radius.circular(8),
+                                              ),
+                                            ),
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.max,
+                                              children: [
+                                                Container(
+                                                  width: double.infinity,
+                                                  height: 160,
+                                                  decoration: BoxDecoration(
+                                                    borderRadius: BorderRadius.only(
+                                                      topRight: Radius.circular(8),
+                                                      topLeft: Radius.circular(8),
                                                     ),
                                                   ),
-                                                );
-                                              }
-                                            }
-                                        );
-                                      }
-                                  ),
-                                )
-                            ),
-                          ],
-                        )
-                    )
+                                                  child: Stack(
+                                                    children: [
+                                                      ListView.builder(
+                                                        scrollDirection: Axis.horizontal,
+                                                        itemCount: _imoveis[index]['imagens'].length,
+                                                        itemBuilder: (BuildContext context, int imgIndex) {
+                                                          return Image.memory(
+                                                            base64Decode(_imoveis[index]['imagens'][imgIndex]),
+                                                            fit: BoxFit.cover,
+                                                            width: MediaQuery.of(context).size.width,
+                                                          );
+                                                        },
+                                                      ),
+                                                      Positioned(
+                                                        top: 8,
+                                                        right: 8,
+                                                        child: Container(
+                                                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                          decoration: BoxDecoration(
+                                                            color: _imoveis[index]['status'] == 'ativo' ? Colors.green : Colors.red,
+                                                            borderRadius: BorderRadius.circular(4),
+                                                          ),
+                                                          child: Text(
+                                                            _imoveis[index]['status'] == 'ativo' ? 'Ativo' : 'Pausado',
+                                                            style: TextStyle(
+                                                              color: Colors.white,
+                                                              fontWeight: FontWeight.bold,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                Padding(
+                                                  padding:
+                                                  EdgeInsetsDirectional
+                                                      .fromSTEB(
+                                                      20, 20, 20, 0),
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                    MainAxisSize.max,
+                                                    mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceEvenly,
+                                                    children: [
+                                                      Expanded(
+                                                        child: Align(
+                                                          alignment:
+                                                          AlignmentDirectional(
+                                                              -1, -1),
+                                                          child: Text(
+                                                            '${_imoveis[index]['tipo']['tipo']}',
+                                                            textAlign:
+                                                            TextAlign.start,
+                                                            style: TextStyle(
+                                                              color: Colors.black,
+                                                              fontWeight:
+                                                              FontWeight.bold,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      Container(
+                                                        width: 70,
+                                                        decoration: BoxDecoration(
+                                                          borderRadius:
+                                                          BorderRadius
+                                                              .circular(2),
+                                                          color:
+                                                          Color(0xFF003049),
+                                                        ),
+                                                        child: Center(
+                                                          child: Text(
+                                                            '${_imoveis[index]['valores']['negocio']}',
+                                                            style: TextStyle(
+                                                              color: Colors.white,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                Padding(
+                                                  padding:
+                                                  EdgeInsetsDirectional
+                                                      .fromSTEB(
+                                                      20, 0, 20, 0),
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                    MainAxisSize.max,
+                                                    children: [
+                                                      Text(
+                                                        '\nRua ${_imoveis[index]['endereco']['rua']},\n${_imoveis[index]['endereco']['bairro']},'
+                                                            '\n${_imoveis[index]['endereco']['cidade']} - ${_imoveis[index]['endereco']['uf']}',
+                                                        style: TextStyle(
+                                                          fontWeight:
+                                                          FontWeight.w500,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                Padding(
+                                                  padding:
+                                                  EdgeInsetsDirectional
+                                                      .fromSTEB(
+                                                      20, 20, 20, 0),
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                    MainAxisSize.max,
+                                                    mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceBetween,
+                                                    children: [
+                                                      Text(
+                                                        'Valor: R\$ ${_imoveis[index]['valores']['valor']}',
+                                                        style: TextStyle(
+                                                          color:
+                                                          Color(0xFF003049),
+                                                          fontWeight:
+                                                          FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                      InkWell(
+                                                        child: Icon(
+                                                          _imoveis[index]['status'] ==
+                                                              'ativo'
+                                                              ? Icons.pause
+                                                              : Icons.play_arrow,
+                                                        ),
+                                                        onTap: () {
+                                                          setState((){
+                                                            toggleStatus(index);
+                                                          });
+                                                        },
+                                                      ),
+                                                      InkWell(
+                                                        child: Icon(
+                                                          Icons.delete_outline,
+                                                        ),
+                                                        onTap: () {
+                                                          showDialog(
+                                                            context: context,
+                                                            builder:
+                                                                (BuildContext
+                                                            context) {
+                                                              return AlertDialog(
+                                                                title: Text(
+                                                                    "Apagar anúncio"),
+                                                                content: Text(
+                                                                    "Deseja apagar esse anúncio?"),
+                                                                actions: [
+                                                                  TextButton(
+                                                                    child: Text(
+                                                                        "Cancelar"),
+                                                                    onPressed:
+                                                                        () {
+                                                                      Navigator.pop(
+                                                                          context);
+                                                                    },
+                                                                  ),
+                                                                  TextButton(
+                                                                    child: Text(
+                                                                        "Sim"),
+                                                                    onPressed:
+                                                                        () async {
+                                                                      var db = await Db
+                                                                          .getConnectionImoveis();
+                                                                      var col = db
+                                                                          .collection(
+                                                                          'informacoes');
+                                                                      await col
+                                                                          .remove(
+                                                                          _imoveis[index]);
+                                                                      setState(
+                                                                              () {
+                                                                            _imoveis
+                                                                                .removeAt(
+                                                                                index);
+                                                                          });
+                                                                      Navigator.pop(
+                                                                          context);
+                                                                      ScaffoldMessenger.of(context).showSnackBar(
+                                                                        SnackBar(content: Text('Anúncio apagado com sucesso')),
+                                                                      );
+                                                                    },
+                                                                  ),
+                                                                ],
+                                                              );
+                                                            },
+                                                          );
+                                                        },
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              );
-            }
+              ),
+            );
+          },
         );
       },
     );
   }
 
   void visitasProprietario() {
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -370,7 +595,6 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
           body: TabBarView(
             controller: _tabController,
             children: [
-              // Conteúdo da guia "1"
               SingleChildScrollView(
                 child: Container(
                   height: 550,
@@ -395,239 +619,183 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
                             return Center(child: Text('Nenhum pedido encontrado.'));
                           }
                           return ListView.builder(
-                              itemCount: _visitasPedidas.length,
-                              scrollDirection: Axis.vertical,
-                              itemBuilder: (context, index){
-                                if (_visitasPedidas.length > index && _visitasPedidas[index]['visitasPedidas'].length > 0){
-                                  return Align(
-                                    alignment: AlignmentDirectional(0, 0),
-                                    child: Padding(
-                                      padding: EdgeInsetsDirectional.fromSTEB(20, 10, 20, 10),
-                                      child: InkWell(
-                                        onTap: (){
-                                        },
-                                        child: Container(
-                                          width: double.infinity,
-                                          margin: EdgeInsets.only(left: 0, right: 0),
-                                          height: 140,
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            boxShadow: [
-                                              BoxShadow(
-                                                blurRadius: 1,
-                                                color: Colors.black,
-                                              )
-                                            ],
-                                            borderRadius: BorderRadius.all(Radius.circular(8)),
-                                          ),
-                                          child: Column(
-                                            mainAxisSize: MainAxisSize.max,
-                                            children: [
-                                              Padding(
-                                                padding: EdgeInsetsDirectional.fromSTEB(20, 10, 20, 0),
-                                                child: Row(
-                                                  mainAxisSize: MainAxisSize.max,
-                                                  children: [
-                                                    Text(
-                                                      '\nEndereço da visita:\n\n${_visitasPedidas[index]['endereco']['rua']}, ${_visitasPedidas[index]['endereco']['numero']}',
-                                                      style: TextStyle(
+                            itemCount: _visitasPedidas.length,
+                            scrollDirection: Axis.vertical,
+                            itemBuilder: (context, index) {
+                              var propriedade = _visitasPedidas[index];
+                              var visitasPedidas = propriedade['visitasPedidas'];
+                              if (visitasPedidas.isEmpty) {
+                                return Container(
+                                  margin: EdgeInsets.only(top: 20, left: 20, right: 20),
+                                  child: Center(
+                                    child: Text(
+                                      'Nenhum pedido para imóvel na rua:\n${_visitasPedidas[index]['endereco']['rua']}, '
+                                          '${_visitasPedidas[index]['endereco']['numero']}\n',
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                );
+                              } else {
+                                return ListView.builder(
+                                  shrinkWrap: true,
+                                  physics: NeverScrollableScrollPhysics(),
+                                  itemCount: visitasPedidas.length,
+                                  itemBuilder: (context, visitasIndex) {
+                                    var visita = visitasPedidas[visitasIndex];
+                                    return Align(
+                                      alignment: AlignmentDirectional(0, 0),
+                                      child: Padding(
+                                        padding: EdgeInsetsDirectional.fromSTEB(20, 10, 20, 10),
+                                        child: InkWell(
+                                          onTap: () {},
+                                          child: Container(
+                                            width: double.infinity,
+                                            margin: EdgeInsets.only(left: 0, right: 0),
+                                            height: 140,
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  blurRadius: 1,
+                                                  color: Colors.black,
+                                                )
+                                              ],
+                                              borderRadius: BorderRadius.all(Radius.circular(8)),
+                                            ),
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.max,
+                                              children: [
+                                                Padding(
+                                                  padding: EdgeInsetsDirectional.fromSTEB(20, 10, 20, 0),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.max,
+                                                    children: [
+                                                      Text(
+                                                        '\nEndereço da visita:\n\n${propriedade['endereco']['rua']}, ${propriedade['endereco']['numero']}',
+                                                        style: TextStyle(
                                                           color: Colors.black,
-                                                          fontWeight: FontWeight.bold
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
                                                       ),
-                                                    ),
-                                                  ],
+                                                    ],
+                                                  ),
                                                 ),
-                                              ),
-                                              Padding(
-                                                padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, 0),
-                                                child: Row(
-                                                  mainAxisSize: MainAxisSize.max,
-                                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                  children: [
-                                                    for (var visita in _visitasPedidas[index]['visitasPedidas'])
+                                                Padding(
+                                                  padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, 0),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.max,
+                                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                    children: [
                                                       Text(
                                                         '\nData: ${visita['data']}'
                                                             '\nHora: ${visita['horario']}',
                                                         style: TextStyle(
-                                                            color: Colors.black,
-                                                            fontWeight: FontWeight.bold
+                                                          color: Colors.black,
+                                                          fontWeight: FontWeight.bold,
                                                         ),
                                                       ),
-                                                    Row(
-                                                      children: [
-                                                        InkWell(
-                                                          child: Icon(
-                                                            Icons.check_box,
-                                                            size: 30,
-                                                            color: Colors.green,
-                                                          ),
-                                                          onTap: (){
-                                                            showDialog(
-                                                              context: context,
-                                                              builder: (BuildContext context) {
-                                                                return AlertDialog(
-                                                                  title: Text("Pedido de visita"),
-                                                                  content: Text("Deseja aceitar essa visita?"),
-                                                                  actions: [
-                                                                    TextButton(
-                                                                      child: Text("Cancelar"),
-                                                                      onPressed:  () {
-                                                                        Navigator.pop(context);
-                                                                      },
-                                                                    ),
-                                                                    TextButton(
-                                                                      child: Text("Sim"),
-                                                                      onPressed: () async {
-                                                                        var db = await Db.getConnectionImoveis();
-                                                                        var col = db.collection('informacoes');
+                                                      Row(
+                                                        children: [
+                                                          InkWell(
+                                                            child: Icon(
+                                                              Icons.check_box,
+                                                              size: 30,
+                                                              color: Colors.green,
+                                                            ),
+                                                            onTap: () {
+                                                              showDialog(
+                                                                context: context,
+                                                                builder: (BuildContext context) {
+                                                                  return AlertDialog(
+                                                                    title: Text("Pedido de visita"),
+                                                                    content: Text("Deseja aceitar essa visita?"),
+                                                                    actions: [
+                                                                      TextButton(
+                                                                        child: Text("Cancelar"),
+                                                                        onPressed: () {
+                                                                          Navigator.pop(context);
+                                                                        },
+                                                                      ),
+                                                                      TextButton(
+                                                                        child: Text("Sim"),
+                                                                        onPressed: () async {
+                                                                          await aceitarVisita(index, visitasIndex);
 
-                                                                        var db2 = await Db.getConnection();
-                                                                        var col2 = db2.collection('notificacoes');
+                                                                          Navigator.pop(context);
 
-                                                                        var id = _visitasPedidas[index]['_id'];
-                                                                        var visitasPedidas = _visitasPedidas[index]['visitasPedidas'];
-
-                                                                        for (int i = 0; i < visitasPedidas.length; i++) {
-                                                                          var visita = visitasPedidas[i];
-
-                                                                          await col.updateOne(
-                                                                            {'_id': id},
-                                                                            {'\$pull': {'visitasPedidas': {'_id': visita['_id']}}},
+                                                                          ScaffoldMessenger.of(context).showSnackBar(
+                                                                            SnackBar(content: Text('Visita marcada')),
                                                                           );
-
-                                                                          col.updateOne(mongo.where.eq('_id', id), mongo.modify.push('visitasAceitas', {
-                                                                            'idProprietario' : visita['idProprietario'],
-                                                                            'emailSolicitante' : visita['emailSolicitante'],
-                                                                            'idImovel': visita['idImovel'],
-                                                                            'data' : visita['data'],
-                                                                            'horario' : visita['horario']
-                                                                          }));
-
-                                                                          await col2.insertOne({
-                                                                            'idProprietario' : visita['idProprietario'],
-                                                                            'emailSolicitante' : visita['emailSolicitante'],
-                                                                            'idImovel': visita['idImovel'],
-                                                                            'data' : visita['data'],
-                                                                            'horario' : visita['horario'],
-                                                                            'status' : 'Aceito'
-                                                                          });
-                                                                        }
-
-                                                                        setState(() {
-                                                                          _visitasPedidas[index]['visitasPedidas'].clear();
-                                                                          _visitasPedidas.removeAt(index);
-                                                                        });
-
-                                                                        Navigator.pop(context);
-
-                                                                        ScaffoldMessenger.of(context).showSnackBar(
-                                                                          SnackBar(content: Text('Visita marcada')),
-                                                                        );
-                                                                      },
-                                                                    ),
-                                                                  ],
-                                                                );
-                                                              },
-                                                            );
-                                                          },
-                                                        ),
-                                                        SizedBox(
-                                                          width: 20,
-                                                        ),
-                                                        InkWell(
-                                                          child: Icon(
-                                                            Icons.close,
-                                                            size: 30,
-                                                            color: Colors.red,
+                                                                        },
+                                                                      ),
+                                                                    ],
+                                                                  );
+                                                                },
+                                                              );
+                                                            },
                                                           ),
-                                                          onTap: (){
-                                                            showDialog(
-                                                              context: context,
-                                                              builder: (BuildContext context) {
-                                                                return AlertDialog(
-                                                                  title: Text("Pedido de visita"),
-                                                                  content: Text("Deseja recusar essa visita?"),
-                                                                  actions: [
-                                                                    TextButton(
-                                                                      child: Text("Cancelar"),
-                                                                      onPressed:  () {
-                                                                        Navigator.pop(context);
-                                                                      },
-                                                                    ),
-                                                                    TextButton(
-                                                                      child: Text("Sim"),
-                                                                      onPressed: () async {
-                                                                        var db = await Db.getConnectionImoveis();
-                                                                        var col = db.collection('informacoes');
+                                                          SizedBox(
+                                                            width: 20,
+                                                          ),
+                                                          InkWell(
+                                                            child: Icon(
+                                                              Icons.close,
+                                                              size: 30,
+                                                              color: Colors.red,
+                                                            ),
+                                                            onTap: () {
+                                                              showDialog(
+                                                                context: context,
+                                                                builder: (BuildContext context) {
+                                                                  return AlertDialog(
+                                                                    title: Text("Pedido de visita"),
+                                                                    content: Text("Deseja recusar essa visita?"),
+                                                                    actions: [
+                                                                      TextButton(
+                                                                        child: Text("Cancelar"),
+                                                                        onPressed: () {
+                                                                          Navigator.pop(context);
+                                                                        },
+                                                                      ),
+                                                                      TextButton(
+                                                                        child: Text("Sim"),
+                                                                        onPressed: () async {
+                                                                          await recusarVisita(index, visitasIndex);
 
-                                                                        var db2 = await Db.getConnection();
-                                                                        var col2 = db2.collection('notificacoes');
+                                                                          Navigator.pop(context);
 
-                                                                        var id = _visitasPedidas[index]['_id'];
-                                                                        var visitasPedidas = _visitasPedidas[index]['visitasPedidas'];
-
-                                                                        for (int i = 0; i < visitasPedidas.length; i++) {
-                                                                          var visita = visitasPedidas[i];
-                                                                          await col.updateOne(
-                                                                            {'_id': id},
-                                                                            {'\$pull': {'visitasPedidas': {'_id': visita['_id']}}},
+                                                                          ScaffoldMessenger.of(context).showSnackBar(
+                                                                            SnackBar(content: Text('Visita recusada')),
                                                                           );
-
-                                                                          await col2.insertOne({
-                                                                            'idProprietario' : visita['idProprietario'],
-                                                                            'emailSolicitante' : visita['emailSolicitante'],
-                                                                            'idImovel': visita['idImovel'],
-                                                                            'data' : visita['data'],
-                                                                            'horario' : visita['horario'],
-                                                                            'status' : 'Recusado'
-                                                                          });
-                                                                        }
-
-                                                                        setState(() {
-                                                                          _visitasPedidas[index]['visitasPedidas'].clear();
-                                                                        });
-
-                                                                        Navigator.pop(context);
-
-                                                                        ScaffoldMessenger.of(context).showSnackBar(
-                                                                          SnackBar(content: Text('Visita recusada')),
-                                                                        );
-                                                                      },
-                                                                    ),
-                                                                  ],
-                                                                );
-                                                              },
-                                                            );
-                                                          },
-                                                        )
-                                                      ],
-                                                    )
-                                                  ],
-                                                ),
-                                              )
-                                            ],
+                                                                        },
+                                                                      ),
+                                                                    ],
+                                                                  );
+                                                                },
+                                                              );
+                                                            },
+                                                          )
+                                                        ],
+                                                      )
+                                                    ],
+                                                  ),
+                                                )
+                                              ],
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                  );
-                                }else {
-                                  return Container(
-                                      margin: EdgeInsets.only(top: 20, left: 20, right: 20),
-                                      child: Center(
-                                          child: Text('Nenhum pedido para imóvel na rua:\n${_visitasPedidas[index]['endereco']['rua']}, '
-                                              '${_visitasPedidas[index]['endereco']['numero']}\n', textAlign: TextAlign.center,)
-                                      )
-                                  );
-                                }
+                                    );
+                                  },
+                                );
                               }
+                            },
                           );
-                        }
+                        },
                     ),
                   ),
                 ),
               ),
-              // Conteúdo da guia "2"
               SingleChildScrollView(
                child: Container(
                  height: 550,
@@ -1170,134 +1338,219 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
   }
 
   void exibirVisitasProprietario(Map<String, dynamic> visitas) {
+    DateTime today = DateTime.now();
+    List<dynamic> visitasFiltradas = visitas['visitasAceitas'];
+    List<DateTime> datasComVisitas = [];
+
+    for (var visita in visitasFiltradas) {
+      DateTime dataVisita = DateFormat('dd/MM/yyyy').parse(visita['data']);
+      datasComVisitas.add(dataVisita);
+    }
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return Scaffold(
-          body: Container(
-              width: double.infinity,
-              height: double.infinity,
-              color: Colors.white,
-              child: SingleChildScrollView(
+        return Dialog(
+          insetPadding: EdgeInsets.zero,
+          backgroundColor: Color(0xFF003049),
+          child: StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState) {
+              return SingleChildScrollView(
+                child: Container(
+                  constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height),
+                  margin: EdgeInsets.only(left: 10, right: 10),
                   child: Column(
-                    mainAxisSize: MainAxisSize.max,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Container(
-                          margin: EdgeInsets.only(right: 20),
-                          alignment: Alignment.topRight,
-                          child: IconButton(
-                            icon: Icon(Icons.close,
-                                size: 30),
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                          )
+                        padding: EdgeInsets.only(top: 20),
+                        decoration: BoxDecoration(
+                          color: Color(0xFF003049),
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(10),
+                            topRight: Radius.circular(10),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Visitas Marcadas',
+                              style: TextStyle(
+                                fontSize: 25,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.close,
+                                color: Colors.white,
+                                size: 30,
+                              ),
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(
+                        height: 30,
                       ),
                       Container(
-                        margin: EdgeInsets.only(left: 20, top: 30),
-                        alignment: Alignment.topLeft,
-                        child: Text('Visitas marcadas', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                      ),
-                      Container(
-                        height: 550,
-                        child: SizedBox(
-                          child: ListView.builder(
-                            itemCount: visitas['visitasAceitas'].length,
-                            scrollDirection: Axis.vertical,
-                            itemBuilder: (context, index){
-                              var visita = visitas['visitasAceitas'][index];
-                              return Align(
-                                alignment: AlignmentDirectional(0, 0),
-                                child: Padding(
-                                  padding: EdgeInsetsDirectional.fromSTEB(20, 10, 20, 10),
-                                  child: InkWell(
-                                    onTap: (){
-                                    },
-                                    child: Container(
-                                      width: double.infinity,
-                                      margin: EdgeInsets.only(left: 0, right: 0),
-                                      height: 70,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        boxShadow: [
-                                          BoxShadow(
-                                            blurRadius: 1,
-                                            color: Colors.black,
-                                          )
-                                        ],
-                                        borderRadius: BorderRadius.all(Radius.circular(8)),
-                                      ),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.max,
-                                        children: [
-                                          Padding(
-                                            padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, 0),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.max,
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                              children: [
-                                                Text(
-                                                  '\nData: ${visita['data']}'
-                                                      '\nHora: ${visita['horario']}',
-                                                  style: TextStyle(
-                                                      color: Colors.black,
-                                                      fontWeight: FontWeight.bold
-                                                  ),
-                                                ),
-                                                Row(
-                                                  children: [
-                                                    InkWell(
-                                                      child: Icon(
-                                                        Icons.info_outline,
-                                                        size: 30,
-                                                        color: Color(0xFF003049),
-                                                      ),
-                                                      onTap: ()async{
-                                                        var email = visita['emailSolicitante'];
-
-                                                        var db = await Db.getConnection();
-                                                        var col = db.collection('user');
-
-                                                        var doc2 = await col.findOne(mongo.where.eq('email', email));
-                                                        if (doc2 != null) {
-                                                          String nome = doc2['nome'];
-                                                          String email = doc2['email'];
-                                                          showDialog(
-                                                            context: context,
-                                                            builder: (BuildContext context) {
-                                                              return AlertDialog(
-                                                                title: Text("Informações do visitante"),
-                                                                content: Text("Nome: $nome\nEmail: $email"),
-                                                                actions: [
-                                                                  TextButton(
-                                                                    onPressed: () => Navigator.pop(context),
-                                                                    child: Text("Fechar"),
-                                                                  ),
-                                                                ],
-                                                              );
-                                                            },
-                                                          );
-                                                        }
-                                                      },
-                                                    ),
-                                                  ],
-                                                )
-                                              ],
-                                            ),
-                                          )
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }
+                        height: 400,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(10),
+                            topRight: Radius.circular(10),
+                            bottomRight: Radius.circular(10),
+                            bottomLeft: Radius.circular(10),
+                          ),
+                        ),
+                        child: TableCalendar(
+                          firstDay: DateTime.utc(2023, 1, 1),
+                          lastDay: DateTime.utc(2023, 12, 31),
+                          focusedDay: today,
+                          headerStyle: HeaderStyle(formatButtonVisible: false, titleCentered: true),
+                          selectedDayPredicate: (day) => isSameDay(day, today),
+                          onDaySelected: (selectedDay, focusedDay) {
+                            setState(() {
+                              today = selectedDay;
+                              visitasFiltradas = visitas['visitasAceitas'].where((visita) {
+                                DateTime dataVisita = DateFormat('dd/MM/yyyy').parse(visita['data']);
+                                return isSameDay(dataVisita, selectedDay);
+                              }).toList();
+                            });
+                          },
+                          calendarStyle: CalendarStyle(
+                            selectedDecoration: BoxDecoration(
+                              color: Color(0xFF003049),
+                              shape: BoxShape.circle,
+                            ),
+                            selectedTextStyle: TextStyle(color: Colors.white),
                           ),
                         ),
                       ),
+                      Container(
+                        height: 180,
+                        decoration: BoxDecoration(
+                          color: Color(0xFF003049),
+                          borderRadius: BorderRadius.only(
+                            bottomLeft: Radius.circular(10),
+                            bottomRight: Radius.circular(10),
+                          ),
+                        ),
+                        child: visitasFiltradas.isEmpty
+                            ? Center(
+                          child: Text(
+                            "Nenhuma visita marcada para esse dia",
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        )
+                            : ListView.builder(
+                          itemCount: visitasFiltradas.length,
+                          itemBuilder: (context, index) {
+                            var visita = visitasFiltradas[index];
+                            String periodo = '';
+                            String horario = visita['horario'];
+                            if (horario.contains('AM')) {
+                              periodo = 'Manhã';
+                            } else if (horario.contains('PM')) {
+                              periodo = 'Tarde';
+                            }
+
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Color(0xFF004165),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: ListTile(
+                                  contentPadding: EdgeInsets.all(8),
+                                  title: Text(
+                                    'Data: ${visita['data']}',
+                                    style: TextStyle(fontSize: 16, color: Colors.white),
+                                  ),
+                                  subtitle: RichText(
+                                    text: TextSpan(
+                                      text: 'Horário: ',
+                                      style: TextStyle(fontSize: 14, color: Colors.white),
+                                      children: [
+                                        TextSpan(
+                                          text: horario,
+                                          style: TextStyle(fontSize: 14, color: Colors.green),
+                                        ),
+                                        TextSpan(
+                                          text: ' ($periodo)',
+                                          style: TextStyle(fontSize: 14, color: Colors.green),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.cancel,
+                                          color: Colors.white,
+                                        ),
+                                        onPressed: () {
+                                          // Ação ao cancelar visita
+                                        },
+                                      ),
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.info_outline,
+                                          color: Colors.white,
+                                        ),
+                                        onPressed: () async {
+                                          var email = visita['emailSolicitante'];
+
+                                          var db = await Db.getConnection();
+                                          var col = db.collection('user');
+
+                                          var doc2 = await col.findOne(mongo.where.eq('email', email));
+                                          if (doc2 != null) {
+                                            String nome = doc2['nome'];
+                                            String email = doc2['email'];
+                                            showDialog(
+                                              context: context,
+                                              builder: (BuildContext context) {
+                                                return AlertDialog(
+                                                  title: Text("Informações do visitante"),
+                                                  content: Text("Nome: $nome\nEmail: $email"),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () => Navigator.pop(context),
+                                                      child: Text("Fechar"),
+                                                    ),
+                                                  ],
+                                                );
+                                              },
+                                            );
+                                          }
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                  onTap: () {
+                                    // Ação ao clicar na visita
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
                     ],
-                  )
-              )
+                  ),
+                ),
+              );
+            },
           ),
         );
       },
@@ -1315,21 +1568,32 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
                 body: Container(
                     width: double.infinity,
                     height: double.infinity,
-                    color: Colors.white,
+                    color: Color(0xFF003049),
                     child: SingleChildScrollView(
                         child: Column(
                           mainAxisSize: MainAxisSize.max,
                           children: [
                             Container(
-                                margin: EdgeInsets.only(right: 20),
-                                alignment: Alignment.topRight,
-                                child: IconButton(
-                                  icon: Icon(Icons.close,
-                                      size: 30),
-                                  onPressed: () {
-                                    Navigator.of(context).pop();
-                                  },
-                                )
+                              margin: EdgeInsets.only(top: 30, left: 20, right: 20),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text("Suas visitas",
+                                      style: TextStyle(
+                                          fontSize: 25,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold
+                                      )),
+                                  IconButton(
+                                    icon: Icon(Icons.close,
+                                        color: Colors.white,
+                                        size: 30),
+                                    onPressed: () {
+                                      Navigator.of(context).pop();
+                                    },
+                                  )
+                                ],
+                              ),
                             ),
                             Container(
                               height: 550,
@@ -1343,118 +1607,136 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
                                                 SizedBox(height: 10,),
-                                                Text("Carregando suas visitas...")
+                                                Text("Carregando suas visitas...", style: TextStyle(color: Colors.white),)
                                               ],
                                             ));
                                       }
                                       if (snapshot.hasError) {
-                                        return Center(child: Text('Error: ${snapshot.error}'));
+                                        return Center(child: Text('Error: ${snapshot.error}', style: TextStyle(color: Colors.white),));
                                       }
                                       if (_visitasAceitasSolicitante.isEmpty) {
-                                        return Center(child: Text('Nenhuma visita encontrada.'));
+                                        return Center(child: Text('Nenhuma visita encontrada.', style: TextStyle(color: Colors.white),));
                                       }
                                       return ListView.builder(
                                           itemCount: snapshot.data?.length,
                                           scrollDirection: Axis.vertical,
                                           itemBuilder: (context, index){
-                                            var visita = _visitasAceitasSolicitante[index]['visitasAceitas'][index];
+                                            var visitasAceitas = _visitasAceitasSolicitante[index]['visitasAceitas'];
                                             var endereco = _visitasAceitasSolicitante[index]['endereco'];
-                                            return Align(
-                                              alignment: AlignmentDirectional(0, 0),
-                                              child: Padding(
-                                                padding: EdgeInsetsDirectional.fromSTEB(20, 10, 20, 10),
-                                                child: InkWell(
-                                                  onTap: (){
-                                                  },
-                                                  child: Container(
-                                                    width: double.infinity,
-                                                    margin: EdgeInsets.only(left: 0, right: 0),
-                                                    height: 120,
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.white,
-                                                      boxShadow: [
-                                                        BoxShadow(
-                                                          blurRadius: 1,
-                                                          color: Colors.black,
-                                                        )
-                                                      ],
-                                                      borderRadius: BorderRadius.all(Radius.circular(8)),
-                                                    ),
-                                                    child: Column(
-                                                      mainAxisSize: MainAxisSize.max,
-                                                      children: [
-                                                        Padding(
-                                                          padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, 0),
-                                                          child: Row(
-                                                            mainAxisSize: MainAxisSize.max,
-                                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                            children: [
-                                                              Text(
-                                                                '\nEndereço da visita: \n${endereco['rua']}, ${endereco['numero']}',
-                                                                style: TextStyle(
-                                                                    color: Color(0xFF003049),
-                                                                    fontWeight: FontWeight.bold,
-                                                                    fontSize: 16
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ),
+                                            return ListView.builder(
+                                              itemCount: visitasAceitas.length,
+                                              scrollDirection: Axis.vertical,
+                                              shrinkWrap: true,
+                                              physics: NeverScrollableScrollPhysics(),
+                                              itemBuilder: (context, subIndex){
+                                                var visita = visitasAceitas[subIndex];
+
+                                                var visitas = visitasAceitas[subIndex];
+                                                String periodo = '';
+                                                String horario = visitas['horario'];
+                                                if (horario.contains('AM')) {
+                                                  periodo = 'Manhã';
+                                                } else if (horario.contains('PM')) {
+                                                  periodo = 'Tarde';
+                                                }
+
+                                                return Align(
+                                                  alignment: AlignmentDirectional(0, 0),
+                                                  child: Padding(
+                                                    padding: EdgeInsetsDirectional.fromSTEB(20, 10, 20, 10),
+                                                    child: InkWell(
+                                                      onTap: (){
+                                                      },
+                                                      child: Container(
+                                                        width: double.infinity,
+                                                        height: 120,
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.white,
+                                                          boxShadow: [
+                                                            BoxShadow(
+                                                              blurRadius: 1,
+                                                              color: Colors.black,
+                                                            )
+                                                          ],
+                                                          borderRadius: BorderRadius.all(Radius.circular(8)),
                                                         ),
-                                                        Padding(
-                                                          padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, 0),
-                                                          child: Row(
-                                                            mainAxisSize: MainAxisSize.max,
-                                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                            children: [
-                                                              Text(
-                                                                '\nData: ${visita['data']}\nHorário: ${visita['horario']}',
-                                                                style: TextStyle(
-                                                                    color: Colors.black,
-                                                                    fontWeight: FontWeight.bold
-                                                                ),
+                                                        child: Column(
+                                                          mainAxisSize: MainAxisSize.max,
+                                                          children: [
+                                                            Padding(
+                                                              padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, 0),
+                                                              child: Row(
+                                                                mainAxisSize: MainAxisSize.max,
+                                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                                children: [
+                                                                  Text(
+                                                                    '\nEndereço da visita: \n${endereco['rua']}, ${endereco['numero']}',
+                                                                    style: TextStyle(
+                                                                        color: Color(0xFF003049),
+                                                                        fontWeight: FontWeight.bold,
+                                                                        fontSize: 16
+                                                                    ),
+                                                                  ),
+                                                                ],
                                                               ),
-                                                              InkWell(
-                                                                child: Icon(
-                                                                  Icons.info_outline,
-                                                                  size: 25,
-                                                                  color: Color(0xFF003049),
-                                                                ),
-                                                                onTap: ()async{
-                                                                  var idProp = visita['idProprietario'];
+                                                            ),
+                                                            Padding(
+                                                              padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, 0),
+                                                              child: Row(
+                                                                mainAxisSize: MainAxisSize.max,
+                                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                                children: [
+                                                                  Text(
+                                                                    '\nData: ${visita['data']}\nHorário: $horario ($periodo)',
+                                                                    style: TextStyle(
+                                                                        color: Colors.black,
+                                                                        fontWeight: FontWeight.bold
+                                                                    ),
+                                                                  ),
+                                                                  InkWell(
+                                                                    child: Icon(
+                                                                      Icons.info_outline,
+                                                                      size: 25,
+                                                                      color: Color(0xFF003049),
+                                                                    ),
+                                                                    onTap: ()async{
+                                                                      var idProp = visita['idProprietario'];
 
-                                                                  var db = await Db.getConnection();
-                                                                  var col = db.collection('user');
+                                                                      var db = await Db.getConnection();
+                                                                      var col = db.collection('user');
 
-                                                                  var doc2 = await col.findOne(mongo.where.eq('_id', idProp));
-                                                                  if (doc2 != null) {
-                                                                    String nome = doc2['nome'];
-                                                                    String email = doc2['email'];
-                                                                    showDialog(
-                                                                      context: context,
-                                                                      builder: (BuildContext context) {
-                                                                        return AlertDialog(
-                                                                          title: Text("Informações do proprietário"),
-                                                                          content: Text("Nome: $nome\nEmail: $email\n\nCEP: ${endereco['cep']}"),
-                                                                          actions: [
-                                                                            TextButton(
-                                                                              onPressed: () => Navigator.pop(context),
-                                                                              child: Text("Fechar"),
-                                                                            ),
-                                                                          ],
+                                                                      var doc2 = await col.findOne(mongo.where.eq('_id', idProp));
+                                                                      if (doc2 != null) {
+                                                                        String nome = doc2['nome'];
+                                                                        String email = doc2['email'];
+                                                                        showDialog(
+                                                                          context: context,
+                                                                          builder: (BuildContext context) {
+                                                                            return AlertDialog(
+                                                                              title: Text("Informações do proprietário"),
+                                                                              content: Text("Nome: $nome\nEmail: $email\n\nCEP: ${endereco['cep']}"),
+                                                                              actions: [
+                                                                                TextButton(
+                                                                                  onPressed: () => Navigator.pop(context),
+                                                                                  child: Text("Fechar"),
+                                                                                ),
+                                                                              ],
+                                                                            );
+                                                                          },
                                                                         );
-                                                                      },
-                                                                    );
-                                                                  }
-                                                                },
-                                                              )
-                                                            ],
-                                                          ),
+                                                                      }
+                                                                    },
+                                                                  )
+                                                                ],
+                                                              ),
+                                                            ),
+                                                          ],
                                                         ),
-                                                      ],
+                                                      ),
                                                     ),
                                                   ),
-                                                ),
-                                              ),
+                                                );
+                                              }
                                             );
                                           }
                                       );
@@ -1716,14 +1998,13 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
                           mainAxisSize: MainAxisSize.max,
                           children: [
                             Icon(
-                              _notificacoes.isEmpty ? Icons.notifications_none : Icons.notifications_active_outlined,
-                              color: _notificacoes.isEmpty ? Colors.black : Colors.red,
+                              hasNotifications ? Icons.notifications_active_outlined : Icons.notifications_none,
+                              color: hasNotifications ? Colors.red : Colors.black,
                               size: 18,
                             ),
                             InkWell(
                               child: Padding(
-                                padding:
-                                EdgeInsetsDirectional.fromSTEB(10, 0, 0, 0),
+                                padding: EdgeInsetsDirectional.fromSTEB(10, 0, 0, 0),
                                 child: Text(
                                   'Notificações',
                                   style: FlutterFlowTheme.of(context)

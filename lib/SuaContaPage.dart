@@ -82,8 +82,9 @@ class _SuaContaPageState extends State<SuaContaPage> {
                       },
                       validator: (value) {
                         if (value!.isEmpty) {
-                          CustomSnackBarError(context, const Text(
-                              'Email está em branco'));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Email está em branco')),
+                          );
                         }
                         return null;
                       },
@@ -102,16 +103,20 @@ class _SuaContaPageState extends State<SuaContaPage> {
                     child: const Text('Apagar'),
                     onPressed: () {
                       if (user.email.isEmpty) {
-                        CustomSnackBarError(
-                            context, const Text('Email está em branco!'));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Email está em branco')),
+                        );
                       } else {
-                        if (widget.user == user.email) {
+                        var doc = widget.user;
+                        var email = doc!['email'];
+                        if (email == user.email) {
                           delete();
                           Navigator.push(context, MaterialPageRoute(builder: (
                               context) => firstpage()));
                         } else {
-                          CustomSnackBarError(context, const Text(
-                              'Email incorreto!'));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Email incorreto')),
+                          );
                         }
                       }
                     },
