@@ -326,15 +326,52 @@ class MapsPage1State extends State<MapsPage1> {
                               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                             ),
                             SizedBox(height: 5),
-                            Text(
-                              'Quartos: ${imovel['caracteristicas']['numeroQuartos']}\nBanheiros: ${imovel['caracteristicas']['numeroBanheiros']}'
-                                  '\nVagas de Carro: ${imovel['caracteristicas']['numeroVagas']}\nPets: $switchPets',
-                              style: TextStyle(fontSize: 16),
+                            Row(
+                              children: [
+                                Icon(Icons.bed_sharp),
+                                Text(
+                                  ' Quartos: ${imovel['caracteristicas']['numeroQuartos']}',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                Icon(Icons.bathtub_outlined),
+                                Text(
+                                  ' Banheiros: ${imovel['caracteristicas']['numeroBanheiros']}',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                Icon(Icons.directions_car_filled_outlined),
+                                Text(
+                                  ' Vagas de Carro: ${imovel['caracteristicas']['numeroVagas']}',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 5),
+                            Wrap(
+                              children: [
+                                Icon(Icons.chair_outlined),
+                                Text(
+                                  ' Mobílias: $mobiliaText',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                              ],
                             ),
                             SizedBox(height: 8),
-                            Text(
-                              'Mobílias: $mobiliaText',
-                              style: TextStyle(fontSize: 16),
+                            Row(
+                              children: [
+                                Icon(Icons.pets_outlined),
+                                Text(
+                                  ' Pets: $switchPets',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                              ],
                             ),
                             SizedBox(height: 30),
                             Text(

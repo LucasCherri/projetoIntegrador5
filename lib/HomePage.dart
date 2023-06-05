@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:front_projeto_quintoandar/maps/MapsPage1.dart';
 import 'package:front_projeto_quintoandar/Settings/db.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'Settings/Snackbar.dart';
@@ -11,6 +12,10 @@ import 'flutter_flow/flutter_flow_widgets.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'maps/MapsPage2.dart';
 import 'package:mongo_dart/mongo_dart.dart' as mongo;
+import 'package:pdf/widgets.dart' as pdfWidgets;
+import 'package:pdf/pdf.dart';
+import 'dart:io';
+import 'package:flutter_pdfview/flutter_pdfview.dart';
 
 class HomePage extends StatefulWidget {
 
@@ -28,10 +33,150 @@ class _HomePageState extends State<HomePage> {
   int _currentPage = 1;
   int _pageSize = 3;
   List<Map<String, dynamic>> _imoveis = [];
+  Future<List<Map<String, dynamic>>>? _imoveisFuture;
   List<Map<String, dynamic>> _favoritos = [];
   bool _isFavorito = false;
 
   late PermissionStatus _permissionStatus;
+
+  TextEditingController cityController = TextEditingController();
+  String selectedTransactionType = 'Alugar';
+  String selectedPropertyType = 'Casa';
+  double minValue = 0.0;
+
+  List<String> transactionTypes = ['Alugar', 'Comprar'];
+  List<String> propertyTypes = ['Casa', 'Apartamento', 'Casa Cond.', 'Kitnet'];
+
+  TextEditingController _valorDesejadoController = TextEditingController();
+  TextEditingController _valorMaximoController = TextEditingController();
+
+  Future<void> _gerarPDF(Map<String, dynamic> imovel) async {
+
+    var userSolicitante = widget.user;
+
+    var name = userSolicitante!['nome'];
+    var emaill = userSolicitante['email'];
+    var celular = userSolicitante['celular'];
+    var idSolicitante = userSolicitante['_id'];
+
+    String nome = name;
+    String email = emaill;
+    String cel = celular;
+    String valorDesejado = _valorDesejadoController.text;
+    String valorMaximo = _valorMaximoController.text;
+
+    final pdf = pdfWidgets.Document();
+
+    pdf.addPage(
+      pdfWidgets.Page(
+        build: (context) {
+          return pdfWidgets.Column(
+            crossAxisAlignment: pdfWidgets.CrossAxisAlignment.start,
+            children: [
+              pdfWidgets.Text('Proposta para ${imovel['valores']['negocio']}', style: pdfWidgets.TextStyle(fontWeight: pdfWidgets.FontWeight.bold, fontSize: 30)),
+              pdfWidgets.SizedBox(height: 20),
+              pdfWidgets.Text('Endereço do imóvel:\nRua ${imovel['endereco']['rua']}, ${imovel['endereco']['bairro']}, ${imovel['endereco']['numero']}', style: pdfWidgets.TextStyle(fontSize: 15)),
+              pdfWidgets.Text('CEP: ${imovel['endereco']['cep']}, ${imovel['endereco']['cidade']} (${imovel['endereco']['uf']})', style: pdfWidgets.TextStyle(fontSize: 15)),
+              pdfWidgets.SizedBox(height: 20),
+              pdfWidgets.Text('Valor desejado pelo solicitante: $valorDesejado\nValor máximo a ser pago pelo solicitante: $valorMaximo', style: pdfWidgets.TextStyle(fontSize: 15)),
+              pdfWidgets.SizedBox(height: 40),
+              pdfWidgets.Text('Esta proposta tem por finalidade assegurar uma oferta (${imovel['valores']['negocio']}) para um imóvel de sua propriedade.', style: pdfWidgets.TextStyle(fontSize: 18)),
+              pdfWidgets.SizedBox(height: 10),
+              pdfWidgets.Text('Proposta: $nome deseja realizar uma proposta para o imóvel localizado no endereço citado acima '
+                  '(${imovel['tipo']['titulo']}, ${imovel['tipo']['tipo']} (${imovel['tipo']['tamanho']}m²)).', style: pdfWidgets.TextStyle(fontSize: 18)),
+              pdfWidgets.SizedBox(height: 20),
+              pdfWidgets.Table.fromTextArray(
+                context: context,
+                data: [
+                  ['Nome', 'Email', 'Celular', 'Valor desejado', 'Valor máximo'],
+                  [nome, email, cel, valorDesejado, valorMaximo],
+                ],
+                cellAlignment: pdfWidgets.Alignment.center,
+                cellStyle: pdfWidgets.TextStyle(
+                  fontWeight: pdfWidgets.FontWeight.bold,
+                ),
+                headerDecoration: pdfWidgets.BoxDecoration(
+                  color: PdfColors.grey300,
+                  borderRadius: pdfWidgets.BorderRadius.circular(5),
+                ),
+                cellHeight: 30,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    final output = await getTemporaryDirectory();
+    final file = File('${output.path}/proposta_comercial.pdf');
+    await file.writeAsBytes(await pdf.save());
+
+    final filePath = file.path;
+
+    final bytes = await file.readAsBytes();
+    final base64PDF = base64Encode(bytes);
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            backgroundColor: Color(0xFF003049),
+            title: Text('Visualizar Proposta'),
+          ),
+          body: PDFView(
+            filePath: filePath,
+          ),
+          bottomNavigationBar: Padding(
+            padding: EdgeInsets.all(16),
+            child: ElevatedButton(
+              onPressed: () async{
+                var db = await Db.getConnection();
+                var col = db.collection('proposta');
+
+                var idProprietario = imovel['_userId'];
+
+                col.insertOne({
+                  'idSolicitante': idSolicitante,
+                  'idProprietario': idProprietario,
+                  'proposta' : base64PDF,
+                  'status' : 'Em análise'
+                });
+
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Proposta enviada com sucesso.')),
+                );
+              },
+              child: Text('Enviar Proposta'),
+              style: ButtonStyle(
+                backgroundColor: MaterialStateProperty.all<Color>(Color(0xFF003049)),
+              ),
+            ),
+
+          ),
+        ),
+      ),
+    );
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Proposta Gerada'),
+          content: Text('A proposta foi gerada com sucesso!'),
+          actions: [
+            TextButton(
+              child: Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+  }
 
   Future<void> checkLocationPermission() async {
     final status = await Permission.locationWhenInUse.status;
@@ -40,20 +185,50 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  Future<List<Map<String, dynamic>>> getImoveis(int page, int pageSize) async {
+  Future<List<Map<String, dynamic>>> getImoveis(int page, int pageSize, {String? tipoImovel, String? valorMaximo, String? cidade, String? negocio, String? quartos, String? banheiros, String? vagas}) async {
     var db = await Db.getConnectionImoveis();
     var col = db.collection('informacoes');
-    final doc = await col.find(mongo.where.eq('status', 'ativo')).skip((page - 1) * pageSize).take(pageSize).toList();
+
+    var query = mongo.where.eq('status', 'ativo');
+
+    if (tipoImovel != null && tipoImovel.isNotEmpty) {
+      query = query.eq('tipo.tipo', tipoImovel);
+    }
+    if (valorMaximo != null && valorMaximo.isNotEmpty) {
+      query = query.lte('valores.valor', valorMaximo);
+    }
+    if (cidade != null && cidade.isNotEmpty) {
+      query = query.eq('endereco.cidade', cidade);
+    }
+    if (negocio != null && negocio.isNotEmpty) {
+      query = query.eq('valores.negocio', negocio);
+    }
+    if (quartos != null && quartos.isNotEmpty) {
+      query = query.eq('caracteristicas.numeroQuartos', quartos);
+    }
+    if (banheiros != null && banheiros.isNotEmpty) {
+      query = query.eq('caracteristicas.numeroBanheiros', banheiros);
+    }
+    if (vagas != null && vagas.isNotEmpty) {
+      query = query.eq('caracteristicas.numeroVagas', vagas);
+    }
+
+    final doc = await col.find(query).skip((page - 1) * pageSize).take(pageSize).toList();
 
     List<Map<String, dynamic>> data = doc;
 
     if (page == 1) {
-      _imoveis = data;
+      _imoveis = List<Map<String, dynamic>>.from(data);
     } else {
-      _imoveis.addAll(data);
+      for (var imovel in data) {
+        var imovelId = imovel['_id'];
+        if (!_imoveis.any((existingImovel) => existingImovel['_id'] == imovelId)) {
+          _imoveis.add(imovel);
+        }
+      }
     }
 
-    return data;
+    return _imoveis;
   }
 
   void _onScroll() {
@@ -71,6 +246,7 @@ class _HomePageState extends State<HomePage> {
     checkLocationPermission();
     _scrollController.addListener(_onScroll);
     _loadFavorites();
+    _imoveisFuture = getImoveis(_currentPage, _pageSize);
   }
 
   @override
@@ -141,7 +317,7 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  void exibirDetalhes(Map<String, dynamic> imovel) async{
+  void exibirDetalhes(Map<String, dynamic> imovel) async {
 
     String mobiliaText = '';
     if (imovel['caracteristicas']['mobilias'] != null && imovel['caracteristicas']['mobilias'].isNotEmpty) {
@@ -183,6 +359,12 @@ class _HomePageState extends State<HomePage> {
     int valorSeguroInteiro = int.parse(valorSeguro);
 
     var valorTotal = valorSeguroInteiro + valorCondInteiro + valorIPTUInteiro + valorInteiro;
+
+    var userSolicitante = widget.user;
+
+    var nome = userSolicitante!['nome'];
+    var email = userSolicitante['email'];
+    var celular = userSolicitante['celular'];
 
     showDialog(
       context: context,
@@ -325,15 +507,52 @@ class _HomePageState extends State<HomePage> {
                               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                             ),
                             SizedBox(height: 5),
-                            Text(
-                              'Quartos: ${imovel['caracteristicas']['numeroQuartos']}\nBanheiros: ${imovel['caracteristicas']['numeroBanheiros']}'
-                                  '\nVagas de Carro: ${imovel['caracteristicas']['numeroVagas']}\nPets: $switchPets',
-                              style: TextStyle(fontSize: 16),
+                            Row(
+                              children: [
+                                Icon(Icons.bed_sharp),
+                                Text(
+                                  ' Quartos: ${imovel['caracteristicas']['numeroQuartos']}',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                Icon(Icons.bathtub_outlined),
+                                Text(
+                                  ' Banheiros: ${imovel['caracteristicas']['numeroBanheiros']}',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                Icon(Icons.directions_car_filled_outlined),
+                                Text(
+                                  ' Vagas de Carro: ${imovel['caracteristicas']['numeroVagas']}',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 5),
+                            Wrap(
+                              children: [
+                                Icon(Icons.chair_outlined),
+                                Text(
+                                  ' Mobílias: $mobiliaText',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                              ],
                             ),
                             SizedBox(height: 8),
-                            Text(
-                              'Mobílias: $mobiliaText',
-                              style: TextStyle(fontSize: 16),
+                            Row(
+                              children: [
+                                Icon(Icons.pets_outlined),
+                                Text(
+                                  ' Pets: $switchPets',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                              ],
                             ),
                             SizedBox(height: 30),
                             Text(
@@ -581,8 +800,7 @@ class _HomePageState extends State<HomePage> {
                                                   var db = await Db.getConnectionImoveis();
                                                   var col = db.collection('informacoes');
 
-                                                  var userSolicitante = widget.user;
-                                                  var userSol = userSolicitante!['email'];
+                                                  var userSol = userSolicitante['email'];
 
                                                   var idProprietario = imovel['_userId'];
                                                   var emailSolicitante = userSol;
@@ -657,7 +875,138 @@ class _HomePageState extends State<HomePage> {
                             color: Colors.blue
                           )),
                           onTap: (){
-
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return StatefulBuilder(
+                                    builder: (BuildContext context, StateSetter setState){
+                                      return Scaffold(
+                                        body: Container(
+                                            width: double.infinity,
+                                            height: double.infinity,
+                                            color: Color(0xFF003049),
+                                            child: SingleChildScrollView(
+                                                child: Column(
+                                                  mainAxisSize: MainAxisSize.max,
+                                                  children: [
+                                                    Container(
+                                                      margin: EdgeInsets.only(top: 30, left: 30, right: 30),
+                                                      child: Row(
+                                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                        children: [
+                                                          Text("Sua proposta",
+                                                              style: TextStyle(
+                                                                  fontSize: 25,
+                                                                  color: Colors.white,
+                                                                  fontWeight: FontWeight.bold
+                                                              )),
+                                                          IconButton(
+                                                            icon: Icon(Icons.close,
+                                                                color: Colors.white,
+                                                                size: 30),
+                                                            onPressed: () {
+                                                              Navigator.of(context).pop();
+                                                            },
+                                                          )
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    Container(
+                                                      margin: EdgeInsets.only(top: 40, left: 30, right: 30),
+                                                      child: Column(
+                                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                                        children: [
+                                                          Text("Seus dados",
+                                                              style: TextStyle(
+                                                                  fontSize: 18,
+                                                                  color: Colors.white,
+                                                                  fontWeight: FontWeight.bold
+                                                              )),
+                                                          SizedBox(height: 16),
+                                                          TextField(
+                                                            decoration: InputDecoration(
+                                                                hintText: nome,
+                                                              labelStyle: TextStyle(color: Colors.white),
+                                                              hintStyle: TextStyle(color: Colors.white),
+                                                            ),
+                                                            readOnly: true,
+                                                          ),
+                                                          SizedBox(height: 16),
+                                                          TextField(
+                                                            decoration: InputDecoration(
+                                                                hintText: celular,
+                                                              labelStyle: TextStyle(color: Colors.white),
+                                                              hintStyle: TextStyle(color: Colors.white),
+                                                            ),
+                                                            readOnly: true,
+                                                          ),
+                                                          SizedBox(height: 16),
+                                                          TextField(
+                                                            decoration: InputDecoration(
+                                                                hintText: email,
+                                                              labelStyle: TextStyle(color: Colors.white),
+                                                              hintStyle: TextStyle(color: Colors.white),
+                                                            ),
+                                                            readOnly: true,
+                                                          ),
+                                                          SizedBox(height: 40),
+                                                          Text("Valores",
+                                                              style: TextStyle(
+                                                                  fontSize: 18,
+                                                                  color: Colors.white,
+                                                                  fontWeight: FontWeight.bold
+                                                              )),
+                                                          SizedBox(height: 16),
+                                                          TextField(
+                                                            controller: _valorDesejadoController,
+                                                            style: TextStyle(color: Colors.white),
+                                                            decoration: InputDecoration(
+                                                              labelText: 'Valor desejado',
+                                                              labelStyle: TextStyle(color: Colors.white),
+                                                              hintStyle: TextStyle(color: Colors.white),
+                                                            ),
+                                                          ),
+                                                          SizedBox(height: 16),
+                                                          TextField(
+                                                            controller: _valorMaximoController,
+                                                            style: TextStyle(color: Colors.white),
+                                                            decoration: InputDecoration(
+                                                              labelText: 'Valor máximo',
+                                                              labelStyle: TextStyle(color: Colors.white),
+                                                              hintStyle: TextStyle(color: Colors.white),
+                                                            ),
+                                                          ),
+                                                          SizedBox(height: 30),
+                                                          Row(
+                                                            mainAxisAlignment: MainAxisAlignment.center,
+                                                            children: [
+                                                              TextButton(
+                                                                child: Text('Gerar Proposta', style: TextStyle(color: Colors.white, fontSize: 20, decoration: TextDecoration.underline)),
+                                                                onPressed: () {
+                                                                  if(_valorDesejadoController.text.isEmpty || _valorMaximoController.text.isEmpty){
+                                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                                      SnackBar(content: Text('Preencha todos os campos de valores.')),
+                                                                    );
+                                                                  }else{
+                                                                    _gerarPDF(imovel);
+                                                                    Navigator.of(context).pop();
+                                                                  }
+                                                                },
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                )
+                                            )
+                                        ),
+                                      );
+                                    }
+                                );
+                              },
+                            );
                           },
                         )
                       ),
@@ -670,6 +1019,311 @@ class _HomePageState extends State<HomePage> {
         );
       },
     );
+  }
+
+  Future<void> filtro() async {
+    String tipoImovel = 'Casa';
+    String valorMaximo = '';
+    String cidade = '';
+    String negocio = 'Alugar';
+    String quartos = '1';
+    String banheiros = '1';
+    String vagas = '1';
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              insetPadding: EdgeInsets.all(0),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+              child: Container(
+                padding: EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'Filtro de Imóveis',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 24,
+                      ),
+                    ),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          children: <Widget>[
+                            SizedBox(height: 20),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Informações',
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 12),
+                            TextFormField(
+                              onChanged: (value) => cidade = value,
+                              decoration: InputDecoration(
+                                labelText: 'Cidade',
+                                labelStyle: TextStyle(
+                                  color: Colors.black54,
+                                  fontSize: 16,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.black),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.black),
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: 10),
+                            TextFormField(
+                              onChanged: (value) => valorMaximo = value,
+                              decoration: InputDecoration(
+                                labelText: 'Valor Máximo',
+                                labelStyle: TextStyle(
+                                  color: Colors.black54,
+                                  fontSize: 16,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.black),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.black),
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: 10),
+                            DropdownButtonFormField<String>(
+                              decoration: InputDecoration(
+                                labelText: "Tipo de Imóvel",
+                                labelStyle: TextStyle(
+                                  color: Colors.black54,
+                                  fontSize: 16,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.black),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.black),
+                                ),
+                              ),
+                              value: tipoImovel,
+                              onChanged: (newValue) {
+                                setState(() {
+                                  tipoImovel = newValue!;
+                                });
+                              },
+                              items: <String>['Casa', 'Apartamento', 'Casa de Condomínio', 'Kitnet']
+                                  .map<DropdownMenuItem<String>>((String value) {
+                                return DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(value),
+                                );
+                              }).toList(),
+                            ),
+                            SizedBox(height: 10),
+                            DropdownButtonFormField<String>(
+                              decoration: InputDecoration(
+                                labelText: "Negócio",
+                                labelStyle: TextStyle(
+                                  color: Colors.black54,
+                                  fontSize: 16,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.black),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.black),
+                                ),
+                              ),
+                              value: negocio,
+                              onChanged: (newValue) {
+                                setState(() {
+                                  negocio = newValue!;
+                                });
+                              },
+                              items: <String>['Alugar', 'Comprar']
+                                  .map<DropdownMenuItem<String>>((String value) {
+                                return DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(value),
+                                );
+                              }).toList(),
+                            ),
+                            SizedBox(height: 20),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Características',
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 12),
+                            DropdownButtonFormField<String>(
+                              decoration: InputDecoration(
+                                labelText: "Quantidade de Quartos",
+                                labelStyle: TextStyle(
+                                  color: Colors.black54,
+                                  fontSize: 16,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.black),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.black),
+                                ),
+                              ),
+                              value: quartos,
+                              onChanged: (newValue) {
+                                setState(() {
+                                  quartos = newValue!;
+                                });
+                              },
+                              items: <String>['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
+                                  .map<DropdownMenuItem<String>>((String value) {
+                                return DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(value),
+                                );
+                              }).toList(),
+                            ),
+                            SizedBox(height: 10),
+                            DropdownButtonFormField<String>(
+                              decoration: InputDecoration(
+                                labelText: "Quantidade de Banheiros",
+                                labelStyle: TextStyle(
+                                  color: Colors.black54,
+                                  fontSize: 16,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.black),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.black),
+                                ),
+                              ),
+                              value: banheiros,
+                              onChanged: (newValue) {
+                                setState(() {
+                                  banheiros = newValue!;
+                                });
+                              },
+                              items: <String>['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
+                                  .map<DropdownMenuItem<String>>((String value) {
+                                return DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(value),
+                                );
+                              }).toList(),
+                            ),
+                            SizedBox(height: 10),
+                            DropdownButtonFormField<String>(
+                              decoration: InputDecoration(
+                                labelText: "Quantidade de Vagas",
+                                labelStyle: TextStyle(
+                                  color: Colors.black54,
+                                  fontSize: 16,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.black),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.black),
+                                ),
+                              ),
+                              value: vagas,
+                              onChanged: (newValue) {
+                                setState(() {
+                                  vagas = newValue!;
+                                });
+                              },
+                              items: <String>['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
+                                  .map<DropdownMenuItem<String>>((String value) {
+                                return DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(value),
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: <Widget>[
+                        TextButton(
+                          child: Text(
+                            'Cancelar',
+                            style: TextStyle(color: Colors.black54),
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                        ),
+                        TextButton(
+                          child: Text(
+                            'Aplicar Filtros',
+                            style: TextStyle(color: Colors.black),
+                          ),
+                          onPressed: () {
+                            Navigator.pop(context, {
+                              'tipoImovel': tipoImovel,
+                              'valorMaximo': valorMaximo,
+                              'cidade': cidade,
+                              'negocio': negocio,
+                              'quartos': quartos,
+                              'banheiros': banheiros,
+                              'vagas': vagas,
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+
+    if (result != null) {
+      _imoveisFuture = getImoveis(
+        _currentPage, _pageSize,
+        tipoImovel: result['tipoImovel'],
+        valorMaximo: result['valorMaximo'],
+        cidade: result['cidade'],
+        negocio: result['negocio'],
+        quartos: result['quartos'],
+        banheiros: result['banheiros'],
+        vagas: result['vagas'],
+      );
+      setState(() {});
+    }
   }
 
   @override
@@ -720,9 +1374,8 @@ class _HomePageState extends State<HomePage> {
                                 icon: Icon(Icons.map_outlined, color: Colors.black,),
                             ),
                             IconButton(
-                                onPressed: (){
-                                },
-                                icon: Icon(Icons.filter_alt_outlined, color: Colors.black,)
+                              onPressed: filtro,
+                              icon: Icon(Icons.filter_alt_outlined, color: Colors.black),
                             ),
                           ],
                         )
@@ -733,7 +1386,7 @@ class _HomePageState extends State<HomePage> {
                       height: 550,
                       child: SizedBox(
                         child: FutureBuilder(
-                            future: getImoveis(_currentPage, _pageSize),
+                            future: _imoveisFuture,
                             builder: (context, snapshot){
                               if (snapshot.connectionState == ConnectionState.waiting) {
                                 return Center(

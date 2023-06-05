@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'dart:typed_data';
+import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:front_projeto_quintoandar/CadastroImovel/CadastroImovelPage1.dart';
 import 'package:front_projeto_quintoandar/SuaContaPage.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -11,6 +14,7 @@ import 'FirstPage.dart';
 import 'Settings/db.dart';
 import 'flutter_flow/flutter_flow_widgets.dart';
 import 'package:mongo_dart/mongo_dart.dart' as mongo;
+import 'dart:io';
 
 class PerfilPage extends StatefulWidget {
 
@@ -31,6 +35,8 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
   List<Map<String, dynamic>> _visitasAceitasSolicitante = [];
   List<Map<String, dynamic>> _notificacoes = [];
   bool hasNotifications = false;
+  List<Map<String, dynamic>> _propostasSolicitante = [];
+  List<Map<String, dynamic>> _propostasProprietario = [];
 
   late TabController _tabController;
 
@@ -120,6 +126,38 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
     setState((){
       hasNotifications = _notificacoes.isNotEmpty;
     });
+
+    return data;
+  }
+
+  Future<List<Map<String, dynamic>>> getPropostasSolicitante() async {
+
+    var user = widget.user;
+    var id = user!['_id'];
+
+    var db = await Db.getConnection();
+    var col = db.collection('proposta');
+    final doc = col.find(mongo.where.eq('idSolicitante', id)).toList();
+
+    List<Map<String, dynamic>> data = await doc;
+
+    _propostasSolicitante = data;
+
+    return data;
+  }
+
+  Future<List<Map<String, dynamic>>> getPropostasProprietario() async {
+
+    var user = widget.user;
+    var id = user!['_id'];
+
+    var db = await Db.getConnection();
+    var col = db.collection('proposta');
+    final doc = col.find(mongo.where.eq('idProprietario', id)).toList();
+
+    List<Map<String, dynamic>> data = await doc;
+
+    _propostasProprietario = data;
 
     return data;
   }
@@ -277,7 +315,7 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
                         height: 20,
                       ),
                       Container(
-                        height: 550,
+                        height: 500,
                         child: SizedBox(
                           child: FutureBuilder(
                             future: getImoveis(),
@@ -565,6 +603,31 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
                           ),
                         ),
                       ),
+                      Padding(
+                        padding: EdgeInsetsDirectional.fromSTEB(25, 10, 25, 0),
+                        child: FFButtonWidget(
+                          onPressed: () async{
+                            propostasProprietario();
+                          },
+                          text: 'Ver Propostas',
+                          options: FFButtonOptions(
+                            width: double.infinity,
+                            height: 61,
+                            color: Color(0xFF003049),
+                            textStyle: FlutterFlowTheme.of(context).titleSmall.override(
+                              fontFamily: 'Poppins',
+                              color: Colors.white,
+                              fontSize: 18,
+                            ),
+                            borderSide: BorderSide(
+                              color: Colors.transparent,
+                              width: 1,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 16,)
                     ],
                   ),
                 ),
@@ -1213,15 +1276,52 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
                               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                             ),
                             SizedBox(height: 5),
-                            Text(
-                              'Quartos: ${imovel['caracteristicas']['numeroQuartos']}\nBanheiros: ${imovel['caracteristicas']['numeroBanheiros']}'
-                                  '\nVagas de Carro: ${imovel['caracteristicas']['numeroVagas']}\nPets: $switchPets',
-                              style: TextStyle(fontSize: 16),
+                            Row(
+                              children: [
+                                Icon(Icons.bed_sharp),
+                                Text(
+                                  ' Quartos: ${imovel['caracteristicas']['numeroQuartos']}',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                Icon(Icons.bathtub_outlined),
+                                Text(
+                                  ' Banheiros: ${imovel['caracteristicas']['numeroBanheiros']}',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                Icon(Icons.directions_car_filled_outlined),
+                                Text(
+                                  ' Vagas de Carro: ${imovel['caracteristicas']['numeroVagas']}',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 5),
+                            Wrap(
+                              children: [
+                                Icon(Icons.chair_outlined),
+                                Text(
+                                  ' Mobílias: $mobiliaText',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                              ],
                             ),
                             SizedBox(height: 8),
-                            Text(
-                              'Mobílias: $mobiliaText',
-                              style: TextStyle(fontSize: 16),
+                            Row(
+                              children: [
+                                Icon(Icons.pets_outlined),
+                                Text(
+                                  ' Pets: $switchPets',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                              ],
                             ),
                             SizedBox(height: 30),
                             Text(
@@ -1499,7 +1599,7 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
                                           color: Colors.white,
                                         ),
                                         onPressed: () {
-                                          // Ação ao cancelar visita
+
                                         },
                                       ),
                                       IconButton(
@@ -1755,6 +1855,542 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
     );
   }
 
+  void propostasSolicitante() {
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState){
+              return Scaffold(
+                body: Container(
+                    width: double.infinity,
+                    height: double.infinity,
+                    color: Color(0xFF003049),
+                    child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.max,
+                          children: [
+                            Container(
+                              margin: EdgeInsets.only(top: 30, left: 30, right: 30),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text("Suas Propostas",
+                                      style: TextStyle(
+                                          fontSize: 25,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold
+                                      )),
+                                  IconButton(
+                                    icon: Icon(Icons.close,
+                                        color: Colors.white,
+                                        size: 30),
+                                    onPressed: () {
+                                      Navigator.of(context).pop();
+                                    },
+                                  )
+                                ],
+                              ),
+                            ),
+                            SizedBox(
+                              height: 20,
+                            ),
+                            Container(
+                              height: 500,
+                              child: SizedBox(
+                                child: FutureBuilder(
+                                    future: getPropostasSolicitante(),
+                                    builder: (context, snapshot){
+                                      if (snapshot.connectionState == ConnectionState.waiting) {
+                                        return Center(
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                SizedBox(height: 10,),
+                                                Text("Carregando suas propostas...",
+                                                  style: TextStyle(
+                                                      color: Colors.white
+                                                  ),)
+                                              ],
+                                            ));
+                                      }
+                                      if (snapshot.hasError) {
+                                        return Center(child: Text('Error: ${snapshot.error}', style: TextStyle(
+                                            color: Colors.white
+                                        ),));
+                                      }
+                                      if (_propostasSolicitante.isEmpty) {
+                                        return Center(child: Text('Nenhuma proposta feita.', style: TextStyle(
+                                            color: Colors.white
+                                        ),));
+                                      }
+                                      return ListView.builder(
+                                          itemCount: _propostasSolicitante.length,
+                                          scrollDirection: Axis.vertical,
+                                          itemBuilder: (context, index){
+                                            return Align(
+                                              alignment: AlignmentDirectional(0, 0),
+                                              child: Padding(
+                                                padding: EdgeInsetsDirectional.fromSTEB(20, 10, 20, 10),
+                                                child: InkWell(
+                                                  onTap: (){
+                                                  },
+                                                  child: Container(
+                                                    width: double.infinity,
+                                                    margin: EdgeInsets.only(left: 0, right: 0),
+                                                    height: 100,
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.white,
+                                                      boxShadow: [
+                                                        BoxShadow(
+                                                          blurRadius: 1,
+                                                          color: Colors.black,
+                                                        )
+                                                      ],
+                                                      borderRadius: BorderRadius.all(Radius.circular(8)),
+                                                    ),
+                                                    child: Column(
+                                                      mainAxisSize: MainAxisSize.max,
+                                                      children: [
+                                                        Padding(
+                                                          padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, 0),
+                                                          child: Row(
+                                                            mainAxisSize: MainAxisSize.max,
+                                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                            children: [
+                                                              Text(
+                                                                '\nProposta: ${index + 1}',
+                                                                style: TextStyle(
+                                                                    color: Color(0xFF003049),
+                                                                    fontWeight: FontWeight.bold,
+                                                                    fontSize: 16
+                                                                ),
+                                                              ),
+                                                              Text(
+                                                                '\t\t${_propostasSolicitante[index]['status']}',
+                                                                style: TextStyle(
+                                                                  color: _propostasSolicitante[index]['status'] == 'Aceito' ? Colors.green : Colors.red,
+                                                                  fontWeight: FontWeight.bold,
+                                                                  fontSize: 16,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                        Padding(
+                                                          padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, 0),
+                                                          child: Row(
+                                                            mainAxisSize: MainAxisSize.max,
+                                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                            children: [
+                                                              InkWell(
+                                                                child: Text(
+                                                                  '\nVer Proposta',
+                                                                  style: TextStyle(
+                                                                      color: Colors.blue,
+                                                                      fontWeight: FontWeight.bold,
+                                                                    decoration: TextDecoration.underline
+                                                                  ),
+                                                                ),
+                                                                onTap: ()async{
+                                                                  var proposta = _propostasSolicitante[index]['proposta'];
+                                                                  Uint8List bytes = base64Decode(proposta);
+
+                                                                  final tempDir = await getTemporaryDirectory();
+                                                                  final tempPath = '${tempDir.path}/temp.pdf';
+                                                                  final tempFile = File(tempPath);
+                                                                  await tempFile.writeAsBytes(bytes);
+
+                                                                  Navigator.of(context).push(
+                                                                    MaterialPageRoute(
+                                                                      builder: (context) => Scaffold(
+                                                                        appBar: AppBar(
+                                                                          backgroundColor: Color(0xFF003049),
+                                                                          title: Text('Visualizar Proposta'),
+                                                                        ),
+                                                                        body: PDFView(
+                                                                          filePath: tempPath,
+                                                                        ),
+                                                                        bottomNavigationBar: Padding(
+                                                                          padding: EdgeInsets.all(16),
+                                                                          child: ElevatedButton(
+                                                                            onPressed: () async{
+
+                                                                              var id = _propostasSolicitante[index]['_id'];
+
+                                                                              var db = await Db.getConnection();
+                                                                              var col = db.collection("proposta");
+
+                                                                              setState((){
+                                                                                col.deleteOne(mongo.where.eq("_id", id));
+                                                                              });
+
+                                                                              Navigator.of(context).pop();
+                                                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                                                SnackBar(content: Text('Proposta cancelada com sucesso.')),
+                                                                              );
+                                                                            },
+                                                                            child: Text('Cancelar Proposta'),
+                                                                            style: ButtonStyle(
+                                                                              backgroundColor: MaterialStateProperty.all<Color>(Colors.red),
+                                                                            ),
+                                                                          ),
+                                                                        ),
+                                                                      ),
+                                                                    ),
+                                                                  );
+                                                                },
+                                                              ),
+                                                              InkWell(
+                                                                child: Icon(
+                                                                  Icons.info_outline,
+                                                                  size: 25,
+                                                                  color: Color(0xFF003049),
+                                                                ),
+                                                                onTap: ()async{
+
+                                                                  if(_propostasProprietario[index]['status'] == 'Aceito'){
+                                                                    showDialog(
+                                                                      context: context,
+                                                                      builder: (BuildContext context) {
+                                                                        return AlertDialog(
+                                                                          title: Text("Proposta Aceita"),
+                                                                          content: Text(
+                                                                            'Chame o proprietário no chat para dar continuidade na proposta.',
+                                                                            style: TextStyle(
+                                                                              color: Colors.black,
+                                                                              fontSize: 18,
+                                                                            ),
+                                                                          ),
+                                                                          actions: [
+                                                                            TextButton(
+                                                                              onPressed: () => Navigator.pop(context),
+                                                                              child: Text("Fechar"),
+                                                                            ),
+                                                                          ],
+                                                                        );
+                                                                      },
+                                                                    );
+                                                                  }else if(_propostasProprietario[index]['status'] == 'Em análise'){
+                                                                    showDialog(
+                                                                      context: context,
+                                                                      builder: (BuildContext context) {
+                                                                        return AlertDialog(
+                                                                          title: Text("Proposta em análise"),
+                                                                          content: Text(
+                                                                            'Proposta ainda não avaliada pelo proprietário.',
+                                                                            style: TextStyle(
+                                                                              color: Colors.black,
+                                                                              fontSize: 18,
+                                                                            ),
+                                                                          ),
+                                                                          actions: [
+                                                                            TextButton(
+                                                                              onPressed: () => Navigator.pop(context),
+                                                                              child: Text("Fechar"),
+                                                                            ),
+                                                                          ],
+                                                                        );
+                                                                      },
+                                                                    );
+                                                                  }else{
+                                                                    showDialog(
+                                                                      context: context,
+                                                                      builder: (BuildContext context) {
+                                                                        return AlertDialog(
+                                                                          title: Text("Proposta Recusada"),
+                                                                          content: Text(
+                                                                            'Proposta recusada pelo proprietário.',
+                                                                            style: TextStyle(
+                                                                              color: Colors.black,
+                                                                              fontSize: 18,
+                                                                            ),
+                                                                          ),
+                                                                          actions: [
+                                                                            TextButton(
+                                                                              onPressed: () => Navigator.pop(context),
+                                                                              child: Text("Fechar"),
+                                                                            ),
+                                                                          ],
+                                                                        );
+                                                                      },
+                                                                    );
+                                                                  }
+                                                                },
+                                                              )
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                      );
+                                    }
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                    )
+                ),
+              );
+            }
+        );
+      },
+    );
+  }
+
+  void propostasProprietario() {
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState){
+              return Scaffold(
+                body: Container(
+                    width: double.infinity,
+                    height: double.infinity,
+                    color: Color(0xFF003049),
+                    child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.max,
+                          children: [
+                            Container(
+                              margin: EdgeInsets.only(top: 30, left: 30, right: 30),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text("Propostas",
+                                      style: TextStyle(
+                                          fontSize: 25,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold
+                                      )),
+                                  IconButton(
+                                    icon: Icon(Icons.close,
+                                        color: Colors.white,
+                                        size: 30),
+                                    onPressed: () {
+                                      Navigator.of(context).pop();
+                                    },
+                                  )
+                                ],
+                              ),
+                            ),
+                            SizedBox(
+                              height: 20,
+                            ),
+                            Container(
+                              height: 500,
+                              child: SizedBox(
+                                child: FutureBuilder(
+                                    future: getPropostasProprietario(),
+                                    builder: (context, snapshot){
+                                      if (snapshot.connectionState == ConnectionState.waiting) {
+                                        return Center(
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                SizedBox(height: 10,),
+                                                Text("Carregando propostas recebidas...",
+                                                  style: TextStyle(
+                                                      color: Colors.white
+                                                  ),)
+                                              ],
+                                            ));
+                                      }
+                                      if (snapshot.hasError) {
+                                        return Center(child: Text('Error: ${snapshot.error}', style: TextStyle(
+                                            color: Colors.white
+                                        ),));
+                                      }
+                                      if (_propostasProprietario.isEmpty) {
+                                        return Center(child: Text('Nenhuma proposta recebida.', style: TextStyle(
+                                            color: Colors.white
+                                        ),));
+                                      }
+                                      return ListView.builder(
+                                          itemCount: _propostasProprietario.length,
+                                          scrollDirection: Axis.vertical,
+                                          itemBuilder: (context, index){
+                                            return Align(
+                                              alignment: AlignmentDirectional(0, 0),
+                                              child: Padding(
+                                                padding: EdgeInsetsDirectional.fromSTEB(20, 10, 20, 10),
+                                                child: InkWell(
+                                                  onTap: (){
+                                                  },
+                                                  child: Container(
+                                                    width: double.infinity,
+                                                    margin: EdgeInsets.only(left: 0, right: 0),
+                                                    height: 100,
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.white,
+                                                      boxShadow: [
+                                                        BoxShadow(
+                                                          blurRadius: 1,
+                                                          color: Colors.black,
+                                                        )
+                                                      ],
+                                                      borderRadius: BorderRadius.all(Radius.circular(8)),
+                                                    ),
+                                                    child: Column(
+                                                      mainAxisSize: MainAxisSize.max,
+                                                      children: [
+                                                        Padding(
+                                                          padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, 0),
+                                                          child: Row(
+                                                            mainAxisSize: MainAxisSize.max,
+                                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                            children: [
+                                                              Text(
+                                                                '\nProposta: ${index + 1}',
+                                                                style: TextStyle(
+                                                                    color: Color(0xFF003049),
+                                                                    fontWeight: FontWeight.bold,
+                                                                    fontSize: 16
+                                                                ),
+                                                              ),
+                                                              Text(
+                                                                '\t\t${_propostasProprietario[index]['status'] == 'Em análise' ? 'Não avaliado' : _propostasProprietario[index]['status']}',
+                                                                style: TextStyle(
+                                                                  color: _propostasProprietario[index]['status'] == 'Aceito' ? Colors.green : (_propostasProprietario[index]['status'] == 'Recusado' ? Colors.red : Colors.black),
+                                                                  fontWeight: FontWeight.bold,
+                                                                  fontSize: 16,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                        Padding(
+                                                          padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, 0),
+                                                          child: Row(
+                                                            mainAxisSize: MainAxisSize.max,
+                                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                            children: [
+                                                              InkWell(
+                                                                child: Text(
+                                                                  '\nVer Proposta',
+                                                                  style: TextStyle(
+                                                                    color: Colors.blue,
+                                                                    fontWeight: FontWeight.bold,
+                                                                    decoration: TextDecoration.underline,
+                                                                  ),
+                                                                ),
+                                                                onTap: () async {
+                                                                  var proposta = _propostasProprietario[index]['proposta'];
+                                                                  Uint8List bytes = base64Decode(proposta);
+
+                                                                  final tempDir = await getTemporaryDirectory();
+                                                                  final tempPath = '${tempDir.path}/temp.pdf';
+                                                                  final tempFile = File(tempPath);
+                                                                  await tempFile.writeAsBytes(bytes);
+
+                                                                  var status = _propostasProprietario[index]['status'];
+                                                                  var id = _propostasProprietario[index]['_id'];
+
+                                                                  Navigator.of(context).push(
+                                                                    MaterialPageRoute(
+                                                                      builder: (context) => Scaffold(
+                                                                        appBar: AppBar(
+                                                                          backgroundColor: Color(0xFF003049),
+                                                                          title: Text('Visualizar Proposta'),
+                                                                        ),
+                                                                        body: PDFView(
+                                                                          filePath: tempPath,
+                                                                        ),
+                                                                        bottomNavigationBar: Padding(
+                                                                          padding: EdgeInsets.all(16),
+                                                                          child: Row(
+                                                                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                                                            children: [
+                                                                              ElevatedButton(
+                                                                                onPressed: () async {
+                                                                                  status = 'Recusado';
+
+                                                                                  var db = await Db.getConnection();
+                                                                                  var col = db.collection("proposta");
+                                                                                  setState((){
+                                                                                    col.updateOne(
+                                                                                      mongo.where.eq("_id", id),
+                                                                                      {"\$set": {"status": status}},
+                                                                                    );
+                                                                                  });
+
+                                                                                  Navigator.of(context).pop();
+                                                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                                                    SnackBar(content: Text('Proposta recusada')),
+                                                                                  );
+                                                                                },
+                                                                                child: Text('Recusar'),
+                                                                                style: ButtonStyle(
+                                                                                  backgroundColor: MaterialStateProperty.all<Color>(Colors.red),
+                                                                                ),
+                                                                              ),
+                                                                              ElevatedButton(
+                                                                                onPressed: () async {
+                                                                                  status = 'Aceito';
+
+                                                                                  var db = await Db.getConnection();
+                                                                                  var col = db.collection("proposta");
+
+                                                                                  setState((){
+                                                                                    col.updateOne(
+                                                                                      mongo.where.eq("_id", id),
+                                                                                      {"\$set": {"status": status}},
+                                                                                    );
+                                                                                  });
+
+                                                                                  Navigator.of(context).pop();
+                                                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                                                    SnackBar(content: Text('Proposta aceita')),
+                                                                                  );
+                                                                                },
+                                                                                child: Text('Aceitar'),
+                                                                                style: ButtonStyle(
+                                                                                  backgroundColor: MaterialStateProperty.all<Color>(Colors.green),
+                                                                                ),
+                                                                              ),
+                                                                            ],
+                                                                          ),
+                                                                        ),
+                                                                      ),
+                                                                    ),
+                                                                  );
+                                                                },
+                                                              )
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                      );
+                                    }
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                    )
+                ),
+              );
+            }
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
 
@@ -1947,6 +2583,9 @@ class _PerfilPageState extends State<PerfilPage> with TickerProviderStateMixin {
                                   ),
                                 ),
                               ),
+                              onTap: (){
+                                propostasSolicitante();
+                              },
                             ),
                           ],
                         ),

@@ -34,7 +34,14 @@ class _CadastroImovelPage3State extends State<CadastroImovelPage3> {
       XFile? file = await picker.pickImage(source: ImageSource.gallery);
       if (file != null) {
         List<int> bytes = await file.readAsBytes();
-        String base64Image = base64Encode(bytes);
+        List<int> compressedBytes = await FlutterImageCompress.compressWithList(
+          Uint8List.fromList(bytes),
+          minHeight: 600,
+          minWidth: 800,
+          quality: 55,
+          format: CompressFormat.jpeg,
+        );
+        String base64Image = base64Encode(compressedBytes);
         setState(() {
           if (fotosSelecionadasBase64 == null) {
             fotosSelecionadasBase64 = [base64Image];
@@ -57,10 +64,10 @@ class _CadastroImovelPage3State extends State<CadastroImovelPage3> {
         List<int> bytes = await file.readAsBytes();
         List<int> compressedBytes = await FlutterImageCompress.compressWithList(
           Uint8List.fromList(bytes),
-          minHeight: 600, // ajuste conforme necessário
-          minWidth: 800, // ajuste conforme necessário
-          quality: 55, // ajuste conforme necessário
-          format: CompressFormat.jpeg, // ajuste conforme necessário
+          minHeight: 600,
+          minWidth: 800,
+          quality: 55,
+          format: CompressFormat.jpeg,
         );
         String base64Image = base64Encode(compressedBytes);
         setState(() {
